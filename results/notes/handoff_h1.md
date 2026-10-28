@@ -4,7 +4,7 @@ You own this piece end to end, including explaining it in the viva.
 
 ## Setup (once, on WSL2 Ubuntu)
 ```
-git clone <repo> && cd ire-project
+git clone https://github.com/parthdhawale/IRE-PROJECT.git && cd IRE-PROJECT
 make setup          # venv + dependencies
 make data           # downloads LegalBench-RAG, checks spans, writes corpus_stats.md
 make test           # should pass

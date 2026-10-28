@@ -36,7 +36,7 @@ analysis + go/no-go** (details in [`results/notes/handoff_h1.md`](../results/not
 ## 3. Setup on your laptop (WSL2 Ubuntu)
 
 ```bash
-git clone <repo-url> && cd ire-project
+git clone https://github.com/parthdhawale/IRE-PROJECT.git && cd IRE-PROJECT
 make setup      # creates .venv (Python 3.13) and installs everything
 make data       # downloads LegalBench-RAG (~80M chars), checks every gold span, writes corpus_stats.md
 make test       # 32 tests, should all pass
