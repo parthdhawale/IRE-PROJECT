@@ -16,6 +16,7 @@ in the same commit.
 | end | int | char offset (exclusive) |
 | level | int | depth in tree, 0 = top level |
 | heading | str | heading text ("" if none) |
+| kind | str | article / secN / numN / paren_alpha / paren_roman / paren_num / roman_dot / caps / preamble / intro (node's own text before its first child) / piece (split of a long leaf) / paragraph (fallback) |
 | breadcrumb | str | headings from root to this node joined by " > " |
 | is_leaf | bool | true for retrieval units |
 | used_fallback | bool | true if document had no headings and was split on paragraphs |

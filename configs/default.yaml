@@ -32,6 +32,12 @@ embedding:
   final_model: BAAI/bge-base-en-v1.5
   device: mps
   batch_size: 64
+  # bge v1.5 instruction for short query -> passage retrieval (from the model card)
+  query_prefix: "Represent this sentence for searching relevant passages: "
+
+bm25:
+  k1: 1.5
+  b: 0.75
 
 hybrid:
   rrf_k: 60
@@ -40,6 +46,7 @@ hybrid:
 segmentation:
   max_leaf_chars: 1500
   min_leaf_chars: 100
+  min_headings: 3           # fewer headings than this -> paragraph fallback
 
 minhash:
   num_perm: 128
