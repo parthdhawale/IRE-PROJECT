@@ -1,0 +1,53 @@
+# All tunable parameters live here. Code reads them via trr.config.load_config().
+
+seed: 0
+
+paths:
+  raw: data/raw/legalbenchrag          # contains corpus/ and benchmarks/
+  cache: data/cache
+  tables: results/tables
+  figures: results/figures
+  runs: results/runs
+  notes: results/notes
+
+data:
+  download_url: "https://www.dropbox.com/scl/fo/r7xfa5i3hdsbxex1w6amw/AID389Olvtm-ZLTKAPrw6k4?rlkey=5n8zrbk4c08lbit3iiexofmwg&st=0hu354cq&dl=1"
+  subsets: [contractnli, cuad, maud, privacy_qa]
+  # Mini benchmark = LegalBench-RAG-mini: 194 queries per subset, selected exactly as in
+  # legalbenchrag/benchmark.py (tests sorted by a random key seeded on the first snippet's
+  # file_path, then the first 194 kept). The retrieval pool is always the FULL subset corpus.
+  mini_per_subset: 194
+
+eval:
+  ks: [1, 2, 4, 8, 16, 32, 64]
+  bootstrap_resamples: 1000
+  bootstrap_seed: 0
+
+chunking:
+  chunk_chars: 500          # LegalBench-RAG baseline: recursive splitter, 500 chars, no overlap
+  overlap: 0
+
+embedding:
+  dev_model: BAAI/bge-small-en-v1.5
+  final_model: BAAI/bge-base-en-v1.5
+  device: mps
+  batch_size: 64
+
+hybrid:
+  rrf_k: 60
+  depth: 200
+
+segmentation:
+  max_leaf_chars: 1500
+  min_leaf_chars: 100
+
+minhash:
+  num_perm: 128
+  shingle_words: 5
+  short_section_words: 40   # sections shorter than this use 3-word shingles
+  short_shingle_words: 3
+
+h1:
+  taus: [0.3, 0.5, 0.7, 0.9]
+  go_tau: 0.5
+  go_median_share: 0.25
