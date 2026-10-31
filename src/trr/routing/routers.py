@@ -5,16 +5,22 @@ its group, never by retraining on it:
 
 - CentroidRouter (Rocchio / nearest centroid): a group is the mean of its training documents'
   L2-normalised embeddings; a query goes to the groups whose centroid has the highest cosine.
-- NBRouter over band_vocab (nb_band): Luhn's "resolving power" band -- every word whose document
-  frequency lies between a low and a high fraction of the training documents. Too-common words
-  carry no topic, too-rare ones are document-specific; the middle band carries the topic.
-  Label-free. Each group is then a Naive Bayes word distribution over the band.
-- VocabLRRouter over band_vocab (band_lr): the same band, but texts become sublinear tf-idf
-  vectors and a multinomial logistic regression maps them to groups.
+
+Word-based routers pick a vocabulary from the training documents, by one of two rules:
+  * band_vocab: Luhn's "resolving power" band -- every word whose document frequency lies
+    between a low and a high fraction of the training documents. Too-common words carry no
+    topic, too-rare ones are document-specific; the middle band carries the topic. Label-free.
+  * discriminative_vocab: per group, the words with the highest p_in * log(p_in / p_out) on
+    Laplace-smoothed document-frequency rates -- a supervised, information-gain style score.
+and then classify with one of two models:
+- NBRouter (nb_band = band): each group is a Naive Bayes word distribution over the vocabulary.
+- VocabLRRouter (band_lr = band, vocab_lr = discriminative): sublinear tf-idf vectors and a
+  multinomial logistic regression; variants differ only in the vocabulary rule.
 """
 
 from __future__ import annotations
 
+import math
 from collections import Counter
 from typing import Callable
 
@@ -43,6 +49,27 @@ class CentroidRouter:
         return query_vecs @ self.centroids.T
 
 
+def discriminative_vocab(token_lists: list[list[str]], labels: list[str], per_group: int,
+                         alpha: float) -> list[str]:
+    """Union over groups of the per_group words with the highest p_in * log(p_in / p_out)."""
+    n = len(token_lists)
+    sets = [set(t) for t in token_lists]
+    df_all = Counter(w for s in sets for w in s)
+    vocab: set[str] = set()
+    for g in set(labels):
+        members = [s for s, lab in zip(sets, labels) if lab == g]
+        n_in, n_out = len(members), n - len(members)
+        df_in = Counter(w for s in members for w in s)
+        scored = []
+        for w, d_in in df_in.items():
+            p_in = (d_in + alpha) / (n_in + 2 * alpha)
+            p_out = (df_all[w] - d_in + alpha) / (n_out + 2 * alpha)
+            if p_in > p_out:
+                scored.append((p_in * math.log(p_in / p_out), w))
+        vocab.update(w for _, w in sorted(scored, reverse=True)[:per_group])
+    return sorted(vocab)
+
+
 def band_vocab(token_lists: list[list[str]], low: float, high: float) -> list[str]:
     """Words whose document frequency is between low and high (fractions of the documents)."""
     n = len(token_lists)
@@ -55,6 +82,10 @@ def _identity(tokens: list[str]) -> list[str]:
 
 
 VocabSelector = Callable[[list[list[str]], list[str]], list[str]]
+
+
+def discriminative_selector(per_group: int, alpha: float) -> VocabSelector:
+    return lambda tokens, labels: discriminative_vocab(tokens, labels, per_group, alpha)
 
 
 def band_selector(low: float, high: float) -> VocabSelector:

@@ -64,6 +64,8 @@ routing:
   dup_tau: 0.8            # document MinHash Jaccard >= this -> near-duplicates, kept in one fold
   min_group_docs: 5       # CUAD types smaller than this are merged into "cuad/Other"
   excerpt_chars: 2000     # leading characters of a document embedded for its group centroid
+  vocab_per_group: 200    # words kept per group, ranked by p_in * log(p_in / p_out)
+  vocab_alpha: 1.0        # Laplace smoothing of the document-frequency rates p_in, p_out
   band_low: 0.01          # the band keeps words in >= 1% ... (fixed before seeing any results)
   band_high: 0.5          # ... and <= 50% of the training documents
   band_sweep_low: [0.005, 0.01, 0.02, 0.05]    # sensitivity table only -- never used to pick the band
