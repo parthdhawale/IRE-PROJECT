@@ -39,13 +39,18 @@ class Embedder:
     """sentence-transformers wrapper: normalised float32 vectors, float16 on disk."""
 
     def __init__(self, cfg: dict, model_name: str | None = None):
+        import torch
         from sentence_transformers import SentenceTransformer
 
         e = cfg["embedding"]
         self.model_name = model_name or e["dev_model"]
         self.batch_size = e["batch_size"]
         self.query_prefix = e["query_prefix"]
-        self.model = SentenceTransformer(self.model_name, device=e["device"])
+        device = e["device"]
+        if device == "auto":
+            device = ("mps" if torch.backends.mps.is_available()
+                      else "cuda" if torch.cuda.is_available() else "cpu")
+        self.model = SentenceTransformer(self.model_name, device=device)
 
     def encode(self, texts: list[str], show_progress: bool = False) -> np.ndarray:
         v = self.model.encode(texts, batch_size=self.batch_size, normalize_embeddings=True,
