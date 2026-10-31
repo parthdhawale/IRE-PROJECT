@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 
 from trr.data.load import Document
+from trr.routing.evaluate import build_levels, rrf_fuse
 from trr.routing.groups import assign_groups, leak_safe_folds, near_duplicate_components
 from trr.routing.routers import (
     CentroidRouter,
@@ -62,6 +63,22 @@ def test_naive_bayes_files_unseen_document_by_word_distribution() -> None:
     assert "agreement" not in band.vocab and "nda0" not in band.vocab
 
 
+def test_rrf_fuse_combines_rankings_and_breaks_ties_by_first() -> None:
+    a = np.array([[0.9, 0.5, 0.1]])   # ranks 1, 2, 3
+    b = np.array([[-5.0, -1.0, -9.0]])  # ranks 2, 1, 3
+    fused = rrf_fuse([a, b], k=60)      # groups 0 and 1 tie on rrf -> first ranker prefers 0
+    assert list((-fused[0]).argsort()) == [0, 1, 2]
+    c = np.array([[-9.0, -1.0, -5.0]])  # ranks 3, 1, 2: group 1 has the best sum
+    assert (-rrf_fuse([a, c], k=60)[0]).argsort()[0] == 1
+
+
+def test_levels_split_coarse_and_fine() -> None:
+    subset = np.array(["cuad", "cuad", "maud"])
+    group = np.array(["cuad/License", "cuad/Supply", "maud"])
+    flat, coarse, fine = build_levels(subset, group, item_doc=np.array([0, 2]))
+    assert list(coarse.item_gold) == ["cuad", "maud"] and list(flat.item_gold) == ["cuad/License", "maud"]
+    assert list(fine.doc_labels) == ["cuad/License", "cuad/Supply", ""]   # fine trains on CUAD only
+    assert list(fine.item_gold) == ["cuad/License", ""]                  # and scores CUAD items only
 
 
 def test_centroid_router_and_gold_rank() -> None:

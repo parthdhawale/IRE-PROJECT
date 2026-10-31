@@ -73,3 +73,12 @@ routing:
   nb_alpha: 1.0           # Laplace smoothing of Naive Bayes word distributions P(w | group)
   lr_c: 1.0               # inverse L2 regularisation strength of the logistic regression
   lr_max_iter: 2000
+  top_b: [1, 2, 3]        # routing accuracy is reported for the gold group within the top-B
+  go_b: 2                 # CI column for the flat (28-group) reference level
+  fuse_rrf_k: 60          # reciprocal rank fusion constant for the fused router (as hybrid.rrf_k)
+  # Separate gates per level (set after the flat v1/v2 results were seen -- stated in the notes).
+  # coarse: 4 classes, a miss can cost a 21%-of-corpus group, so top-1.
+  # fine: 25 CUAD types, searching 3 of them covers ~4-14% of the corpus, so top-3.
+  gates:
+    coarse: {b: 1, accuracy: 0.95}
+    fine: {b: 3, accuracy: 0.95}

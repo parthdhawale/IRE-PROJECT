@@ -1,0 +1,133 @@
+# Document grouping go/no-go, per level: are unseen documents filed correctly?
+
+- **coarse: GO** -- best router `band_lr`, acc@1 = 0.994 (gate >= 0.95)
+- **fine: NO-GO** -- best router `centroid`, acc@3 = 0.929 (gate >= 0.95)
+
+End-to-end for CUAD documents (coarse top-1 correct AND contract type in fine top-3): `centroid` 0.920, `vocab_lr` 0.846, `band_lr` 0.835, `nb_band` 0.760, `nb_all` 0.699, `fused` 0.898
+
+## Setup
+
+- 714 documents; same groups, 5 leak-safe folds and levels as the query routing gate. Each document is classified once, by classifiers fit only on the other folds.
+- Band = words in 1%-50% of the training documents, recomputed per fold and per level from training documents only.
+- nb_band / nb_all: multinomial Naive Bayes on band / all words; band_lr / vocab_lr: logistic regression on band / discriminative words; centroid: embedding of the first 2000 characters; fused: reciprocal rank fusion of centroid and nb_band.
+- Gate values were set after the flat results had been seen (see routing_gate.md for the reasoning).
+
+## Results
+
+| level   | router   | subset      |   items |   acc@1 |   acc@2 |   acc@3 | ci95@2         | ci95@1         | ci95@3         |
+|:--------|:---------|:------------|--------:|--------:|--------:|--------:|:---------------|:---------------|:---------------|
+| flat    | centroid | contractnli |      95 |   0.989 |   0.989 |   0.989 |                |                |                |
+| flat    | centroid | cuad        |     462 |   0.801 |   0.89  |   0.929 |                |                |                |
+| flat    | centroid | maud        |     150 |   1     |   1     |   1     |                |                |                |
+| flat    | centroid | privacy_qa  |       7 |   1     |   1     |   1     |                |                |                |
+| flat    | centroid | ALL         |     714 |   0.87  |   0.927 |   0.952 | [0.909, 0.945] |                |                |
+| flat    | vocab_lr | contractnli |      95 |   1     |   1     |   1     |                |                |                |
+| flat    | vocab_lr | cuad        |     462 |   0.662 |   0.788 |   0.855 |                |                |                |
+| flat    | vocab_lr | maud        |     150 |   1     |   1     |   1     |                |                |                |
+| flat    | vocab_lr | privacy_qa  |       7 |   1     |   1     |   1     |                |                |                |
+| flat    | vocab_lr | ALL         |     714 |   0.782 |   0.863 |   0.906 | [0.836, 0.888] |                |                |
+| flat    | band_lr  | contractnli |      95 |   1     |   1     |   1     |                |                |                |
+| flat    | band_lr  | cuad        |     462 |   0.63  |   0.76  |   0.838 |                |                |                |
+| flat    | band_lr  | maud        |     150 |   1     |   1     |   1     |                |                |                |
+| flat    | band_lr  | privacy_qa  |       7 |   1     |   1     |   1     |                |                |                |
+| flat    | band_lr  | ALL         |     714 |   0.761 |   0.845 |   0.895 | [0.819, 0.870] |                |                |
+| flat    | nb_band  | contractnli |      95 |   0.916 |   0.926 |   0.968 |                |                |                |
+| flat    | nb_band  | cuad        |     462 |   0.604 |   0.755 |   0.794 |                |                |                |
+| flat    | nb_band  | maud        |     150 |   1     |   1     |   1     |                |                |                |
+| flat    | nb_band  | privacy_qa  |       7 |   1     |   1     |   1     |                |                |                |
+| flat    | nb_band  | ALL         |     714 |   0.732 |   0.832 |   0.863 | [0.805, 0.859] |                |                |
+| flat    | nb_all   | contractnli |      95 |   0.968 |   0.989 |   0.989 |                |                |                |
+| flat    | nb_all   | cuad        |     462 |   0.489 |   0.626 |   0.69  |                |                |                |
+| flat    | nb_all   | maud        |     150 |   1     |   1     |   1     |                |                |                |
+| flat    | nb_all   | privacy_qa  |       7 |   1     |   1     |   1     |                |                |                |
+| flat    | nb_all   | ALL         |     714 |   0.665 |   0.756 |   0.798 | [0.724, 0.786] |                |                |
+| flat    | fused    | contractnli |      95 |   0.979 |   0.989 |   0.989 |                |                |                |
+| flat    | fused    | cuad        |     462 |   0.751 |   0.853 |   0.903 |                |                |                |
+| flat    | fused    | maud        |     150 |   1     |   1     |   1     |                |                |                |
+| flat    | fused    | privacy_qa  |       7 |   1     |   1     |   1     |                |                |                |
+| flat    | fused    | ALL         |     714 |   0.836 |   0.903 |   0.936 | [0.882, 0.924] |                |                |
+| coarse  | centroid | contractnli |      95 |   0.989 |   1     |   1     |                |                |                |
+| coarse  | centroid | cuad        |     462 |   0.991 |   1     |   1     |                |                |                |
+| coarse  | centroid | maud        |     150 |   0.993 |   1     |   1     |                |                |                |
+| coarse  | centroid | privacy_qa  |       7 |   1     |   1     |   1     |                |                |                |
+| coarse  | centroid | ALL         |     714 |   0.992 |   1     |   1     |                | [0.985, 0.997] |                |
+| coarse  | vocab_lr | contractnli |      95 |   0.989 |   1     |   1     |                |                |                |
+| coarse  | vocab_lr | cuad        |     462 |   0.981 |   1     |   1     |                |                |                |
+| coarse  | vocab_lr | maud        |     150 |   1     |   1     |   1     |                |                |                |
+| coarse  | vocab_lr | privacy_qa  |       7 |   1     |   1     |   1     |                |                |                |
+| coarse  | vocab_lr | ALL         |     714 |   0.986 |   1     |   1     |                | [0.976, 0.994] |                |
+| coarse  | band_lr  | contractnli |      95 |   0.979 |   1     |   1     |                |                |                |
+| coarse  | band_lr  | cuad        |     462 |   0.996 |   1     |   1     |                |                |                |
+| coarse  | band_lr  | maud        |     150 |   1     |   1     |   1     |                |                |                |
+| coarse  | band_lr  | privacy_qa  |       7 |   1     |   1     |   1     |                |                |                |
+| coarse  | band_lr  | ALL         |     714 |   0.994 |   1     |   1     |                | [0.989, 0.999] |                |
+| coarse  | nb_band  | contractnli |      95 |   0.926 |   0.979 |   1     |                |                |                |
+| coarse  | nb_band  | cuad        |     462 |   0.942 |   1     |   1     |                |                |                |
+| coarse  | nb_band  | maud        |     150 |   1     |   1     |   1     |                |                |                |
+| coarse  | nb_band  | privacy_qa  |       7 |   1     |   1     |   1     |                |                |                |
+| coarse  | nb_band  | ALL         |     714 |   0.952 |   0.997 |   1     |                | [0.936, 0.968] |                |
+| coarse  | nb_all   | contractnli |      95 |   0.853 |   1     |   1     |                |                |                |
+| coarse  | nb_all   | cuad        |     462 |   0.95  |   1     |   1     |                |                |                |
+| coarse  | nb_all   | maud        |     150 |   1     |   1     |   1     |                |                |                |
+| coarse  | nb_all   | privacy_qa  |       7 |   1     |   1     |   1     |                |                |                |
+| coarse  | nb_all   | ALL         |     714 |   0.948 |   1     |   1     |                | [0.931, 0.964] |                |
+| coarse  | fused    | contractnli |      95 |   0.979 |   1     |   1     |                |                |                |
+| coarse  | fused    | cuad        |     462 |   0.996 |   1     |   1     |                |                |                |
+| coarse  | fused    | maud        |     150 |   0.993 |   1     |   1     |                |                |                |
+| coarse  | fused    | privacy_qa  |       7 |   1     |   1     |   1     |                |                |                |
+| coarse  | fused    | ALL         |     714 |   0.993 |   1     |   1     |                | [0.987, 0.999] |                |
+| fine    | centroid | cuad        |     462 |   0.801 |   0.89  |   0.929 |                |                |                |
+| fine    | centroid | ALL         |     462 |   0.801 |   0.89  |   0.929 |                |                | [0.905, 0.950] |
+| fine    | vocab_lr | cuad        |     462 |   0.671 |   0.803 |   0.861 |                |                |                |
+| fine    | vocab_lr | ALL         |     462 |   0.671 |   0.803 |   0.861 |                |                | [0.829, 0.892] |
+| fine    | band_lr  | cuad        |     462 |   0.63  |   0.768 |   0.838 |                |                |                |
+| fine    | band_lr  | ALL         |     462 |   0.63  |   0.768 |   0.838 |                |                | [0.805, 0.870] |
+| fine    | nb_band  | cuad        |     462 |   0.615 |   0.753 |   0.803 |                |                |                |
+| fine    | nb_band  | ALL         |     462 |   0.615 |   0.753 |   0.803 |                |                | [0.766, 0.838] |
+| fine    | nb_all   | cuad        |     462 |   0.535 |   0.665 |   0.74  |                |                |                |
+| fine    | nb_all   | ALL         |     462 |   0.535 |   0.665 |   0.74  |                |                | [0.701, 0.779] |
+| fine    | fused    | cuad        |     462 |   0.742 |   0.846 |   0.903 |                |                |                |
+| fine    | fused    | ALL         |     462 |   0.742 |   0.846 |   0.903 |                |                | [0.874, 0.931] |
+
+## Fine level, per contract type (top-1)
+
+| type                    |   docs |   centroid@1 |   vocab_lr@1 |   band_lr@1 |   nb_band@1 |   nb_all@1 |   fused@1 |
+|:------------------------|-------:|-------------:|-------------:|------------:|------------:|-----------:|----------:|
+| cuad/License            |     41 |         0.71 |         0.63 |        0.61 |        0.73 |       0.88 |      0.8  |
+| cuad/Sponsorship        |     31 |         0.97 |         0.87 |        0.74 |        0.71 |       0.58 |      0.94 |
+| cuad/Strategic Alliance |     29 |         0.79 |         0.66 |        0.52 |        0.48 |       0.52 |      0.72 |
+| cuad/Distributor        |     29 |         0.93 |         0.9  |        0.9  |        0.86 |       0.86 |      0.97 |
+| cuad/Development        |     27 |         0.67 |         0.44 |        0.33 |        0.56 |       0.67 |      0.56 |
+| cuad/Maintenance        |     26 |         0.88 |         0.69 |        0.54 |        0.46 |       0.5  |      0.62 |
+| cuad/Collaboration      |     26 |         0.73 |         0.38 |        0.38 |        0.35 |       0.35 |      0.58 |
+| cuad/Service            |     26 |         0.77 |         0.62 |        0.58 |        0.58 |       0.62 |      0.85 |
+| cuad/Endorsement        |     24 |         0.92 |         0.96 |        1    |        0.83 |       0.46 |      0.83 |
+| cuad/Co-Branding        |     21 |         0.95 |         0.95 |        0.9  |        0.67 |       0.67 |      0.86 |
+| cuad/Outsourcing        |     17 |         0.76 |         0.53 |        0.29 |        0.35 |       0.24 |      0.65 |
+| cuad/Supply             |     17 |         0.94 |         0.47 |        0.59 |        0.59 |       0.65 |      0.88 |
+| cuad/IP                 |     16 |         0.69 |         0.88 |        0.88 |        0.75 |       0.62 |      0.62 |
+| cuad/Hosting            |     15 |         0.8  |         0.73 |        0.67 |        0.4  |       0.13 |      0.53 |
+| cuad/Manufacturing      |     14 |         0.71 |         0.64 |        0.71 |        0.57 |       0.57 |      0.79 |
+| cuad/Transportation     |     13 |         1    |         1    |        1    |        0.77 |       0.77 |      0.92 |
+| cuad/Agency             |     12 |         0.67 |         0.67 |        0.67 |        0.67 |       0.67 |      0.67 |
+| cuad/Promotion          |     12 |         0.83 |         0.33 |        0.42 |        0.5  |       0.25 |      0.58 |
+| cuad/Consulting         |     11 |         0.91 |         1    |        1    |        0.91 |       0    |      1    |
+| cuad/Franchise          |     11 |         0.82 |         0.91 |        0.91 |        1    |       0.91 |      1    |
+| cuad/Affiliate          |     10 |         0.9  |         0.1  |        0.1  |        0.3  |       0    |      0.5  |
+| cuad/Joint Venture      |     10 |         0.7  |         0.7  |        0.9  |        0.8  |       0.5  |      0.7  |
+| cuad/Marketing          |     10 |         0.2  |         0    |        0    |        0.1  |       0.1  |      0.2  |
+| cuad/Reseller           |     10 |         0.9  |         0.8  |        0.5  |        0.8  |       0    |      0.8  |
+| cuad/Other              |      4 |         0    |         0    |        0    |        0.25 |       0    |      0    |
+
+## Most frequent fine-level confusions (centroid, top-1)
+
+- 5x `cuad/Collaboration` -> `cuad/Development`
+- 4x `cuad/Strategic Alliance` -> `cuad/Development`
+- 4x `cuad/IP` -> `cuad/Development`
+- 4x `cuad/License` -> `cuad/Development`
+- 3x `cuad/Manufacturing` -> `cuad/Development`
+- 3x `cuad/Marketing` -> `cuad/Development`
+- 2x `cuad/Service` -> `cuad/Outsourcing`
+- 2x `cuad/Service` -> `cuad/Development`
+- 2x `cuad/License` -> `cuad/Hosting`
+- 2x `cuad/Marketing` -> `cuad/Agency`
