@@ -58,3 +58,12 @@ h1:
   taus: [0.3, 0.5, 0.7, 0.9]
   go_tau: 0.5
   go_median_share: 0.25
+
+routing:
+  n_folds: 5              # document-level folds; routers are scored only on held-out documents
+  dup_tau: 0.8            # document MinHash Jaccard >= this -> near-duplicates, kept in one fold
+  min_group_docs: 5       # CUAD types smaller than this are merged into "cuad/Other"
+  excerpt_chars: 2000     # leading characters of a document embedded for its group centroid
+  band_low: 0.01          # the band keeps words in >= 1% ... (fixed before seeing any results)
+  band_high: 0.5          # ... and <= 50% of the training documents
+  nb_alpha: 1.0           # Laplace smoothing of Naive Bayes word distributions P(w | group)
