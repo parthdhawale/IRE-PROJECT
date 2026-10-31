@@ -43,8 +43,13 @@ def signature_bytes(m: MinHash) -> bytes:
 
 
 def from_bytes(b: bytes, num_perm: int, seed: int) -> MinHash:
-    """Rebuild a MinHash from stored hash values (same num_perm and seed as when built)."""
-    return MinHash(num_perm=num_perm, seed=seed, hashvalues=np.frombuffer(b, dtype=np.uint64))
+    """Rebuild a MinHash from stored hash values (same num_perm and seed as when built).
+
+    scheme="affine32" matches what minhash_of() produces by default (datasketch >=2.0 requires
+    naming it explicitly when reconstructing from raw hashvalues instead of hashing text).
+    """
+    return MinHash(num_perm=num_perm, seed=seed, hashvalues=np.frombuffer(b, dtype=np.uint64),
+                   scheme="affine32")
 
 
 def jaccard_estimate(a: bytes, b: bytes) -> float:
