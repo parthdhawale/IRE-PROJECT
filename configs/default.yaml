@@ -66,4 +66,8 @@ routing:
   excerpt_chars: 2000     # leading characters of a document embedded for its group centroid
   band_low: 0.01          # the band keeps words in >= 1% ... (fixed before seeing any results)
   band_high: 0.5          # ... and <= 50% of the training documents
+  band_sweep_low: [0.005, 0.01, 0.02, 0.05]    # sensitivity table only -- never used to pick the band
+  band_sweep_high: [0.25, 0.5, 0.75, 1.0]
   nb_alpha: 1.0           # Laplace smoothing of Naive Bayes word distributions P(w | group)
+  lr_c: 1.0               # inverse L2 regularisation strength of the logistic regression
+  lr_max_iter: 2000

@@ -9,6 +9,8 @@ its group, never by retraining on it:
   frequency lies between a low and a high fraction of the training documents. Too-common words
   carry no topic, too-rare ones are document-specific; the middle band carries the topic.
   Label-free. Each group is then a Naive Bayes word distribution over the band.
+- VocabLRRouter over band_vocab (band_lr): the same band, but texts become sublinear tf-idf
+  vectors and a multinomial logistic regression maps them to groups.
 """
 
 from __future__ import annotations
@@ -18,7 +20,8 @@ from typing import Callable
 
 import bm25s
 import numpy as np
-from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
 from sklearn.naive_bayes import MultinomialNB
 
 
@@ -82,6 +85,27 @@ class NBRouter:
     def scores(self, token_lists: list[list[str]]) -> np.ndarray:
         """(n_texts, n_groups) log posterior, columns in self.groups order."""
         return self.nb.predict_log_proba(self.vec.transform(token_lists))
+
+
+class VocabLRRouter:
+    """Same tf-idf + logistic regression for every variant; only `select` (the rule that picks
+    the vocabulary from the training documents and their group labels) differs."""
+
+    def __init__(self, select: VocabSelector, c: float, max_iter: int, seed: int):
+        self.select, self.c, self.max_iter, self.seed = select, c, max_iter, seed
+
+    def fit(self, token_lists: list[list[str]], labels: list[str]) -> "VocabLRRouter":
+        self.vocab = self.select(token_lists, labels)
+        self.vec = TfidfVectorizer(analyzer=_identity, vocabulary=self.vocab, sublinear_tf=True)
+        x = self.vec.fit_transform(token_lists)  # idf from training documents only
+        self.lr = LogisticRegression(C=self.c, max_iter=self.max_iter, class_weight="balanced",
+                                     random_state=self.seed).fit(x, labels)
+        self.groups = list(self.lr.classes_)
+        return self
+
+    def scores(self, token_lists: list[list[str]]) -> np.ndarray:
+        """(n_queries, n_groups) class probabilities, columns in self.groups order."""
+        return self.lr.predict_proba(self.vec.transform(token_lists))
 
 
 def gold_rank(scores: np.ndarray, groups: list[str], gold: list[str]) -> np.ndarray:
