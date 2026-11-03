@@ -20,8 +20,10 @@ from trr.retrievers.base import Retriever
 
 
 def run_subset(retriever: Retriever, queries: list[Query], subset: str, ks: list[int],
-               cfg: dict, split: str) -> list[dict]:
+               cfg: dict, split: str, pool: str | None = None) -> list[dict]:
+    """Queries of `subset` searched in `pool` (default: the subset's own corpus)."""
     kmax = max(ks)
+    pool = pool or subset
     if hasattr(retriever, "prepare_queries"):
         retriever.prepare_queries([q.text for q in queries])
     records = []
@@ -29,17 +31,18 @@ def run_subset(retriever: Retriever, queries: list[Query], subset: str, ks: list
         if getattr(retriever, "needs_gold", False):
             retriever.set_gold(q.gold_docs)
         t0 = time.perf_counter()
-        hits = retriever.retrieve(q.text, kmax, subset)
+        hits = retriever.retrieve(q.text, kmax, pool)
         latency_ms = (time.perf_counter() - t0) * 1000
         records.append({
             "qid": q.qid, "subset": subset, "gold_docs": sorted(q.gold_docs),
             "latency_ms": latency_ms, **query_metrics(hits, q.gold, ks),
+            **({"diag": retriever.last_diag} if hasattr(retriever, "last_diag") else {}),
             "hits": [asdict(h) for h in hits],
         })
     runs = Path(cfg["paths"]["runs"])
     runs.mkdir(parents=True, exist_ok=True)
     with open(runs / f"{retriever.name}_{split}_{subset}.jsonl", "w") as f:
-        header = {"_header": True, "method": retriever.name, "split": split, "subset": subset,
+        header = {"_header": True, "method": retriever.name, "split": split, "subset": subset, "pool": pool,
                   "git": git_hash(), "config": cfg}
         f.write(json.dumps(header) + "\n")
         for r in records:
@@ -49,7 +52,7 @@ def run_subset(retriever: Retriever, queries: list[Query], subset: str, ks: list
 
 def aggregate(records: list[dict], method: str, ks: list[int]) -> pd.DataFrame:
     """Mean of every metric per subset and k, plus an 'ALL' row (macro mean over subsets)."""
-    df = pd.DataFrame([{k: v for k, v in r.items() if k != "hits"} for r in records])
+    df = pd.DataFrame([{k: v for k, v in r.items() if k not in ("hits", "diag")} for r in records])
     rows = []
     for subset, g in df.groupby("subset", sort=False):
         for k in ks:

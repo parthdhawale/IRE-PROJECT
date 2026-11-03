@@ -22,6 +22,7 @@ def _hits(store: ChunkStore, subset: str, rows, scores) -> list[Hit]:
 
 class _Base:
     name = "base"
+    store_kind = "chunk"   # "chunk" = 500-char chunks, "leaf" = section-tree leaves
 
     def __init__(self, store: ChunkStore):
         self.store = store
@@ -131,5 +132,24 @@ class DocFirstRetriever(DenseRetriever):
         return _hits(self.store, pool, rows, scores)
 
 
+class LeafBM25Retriever(BM25Retriever):
+    """Section-tree baseline: flat BM25 over section leaves instead of 500-char chunks."""
+    name = "leaf_bm25"
+    store_kind = "leaf"
+
+
+class LeafDenseRetriever(DenseRetriever):
+    """Section-tree baseline: flat dense search over section leaves."""
+    name = "leaf_dense"
+    store_kind = "leaf"
+
+
+class LeafHybridRetriever(HybridRetriever):
+    """Section-tree baseline: RRF of BM25 and dense over section leaves."""
+    name = "leaf_hybrid"
+    store_kind = "leaf"
+
+
 BASELINES = {c.name: c for c in
-             [BM25Retriever, DenseRetriever, HybridRetriever, OracleRetriever, DocFirstRetriever]}
+             [BM25Retriever, DenseRetriever, HybridRetriever, OracleRetriever, DocFirstRetriever,
+              LeafBM25Retriever, LeafDenseRetriever, LeafHybridRetriever]}

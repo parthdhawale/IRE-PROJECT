@@ -43,6 +43,10 @@ hybrid:
   rrf_k: 60
   depth: 200
 
+leaf_store:
+  # section-tree baseline: retrieval units are the leaves of data/cache/sections.parquet
+  breadcrumb_chars: 200     # parent headings prepended to a leaf for embedding only (cap)
+
 segmentation:
   max_leaf_chars: 1500
   min_leaf_chars: 100
@@ -82,3 +86,11 @@ routing:
   gates:
     coarse: {b: 1, accuracy: 0.95}
     fine: {b: 3, accuracy: 0.95}
+
+group_first:
+  # Group-first retrieval on ONE mixed pool of all 714 documents (src/trr/retrievers/group_first.py).
+  # "none" = no routing (flat mixed-pool baseline), "oracle" = gold group (routing upper bound).
+  routers: [none, oracle, centroid, nb_all, nb_band, fused]
+  beams: [1, 2, 3]          # top-B groups searched (ignored for none / oracle)
+  inners: [dense, hybrid, docfirst, docfirst_local]
+  table_ks: [1, 8, 64]
