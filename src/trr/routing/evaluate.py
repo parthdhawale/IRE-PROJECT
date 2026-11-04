@@ -28,7 +28,9 @@ from trr.routing.routers import (
     gold_rank,
 )
 
-ROUTER_INPUT = {"centroid": "vec", "vocab_lr": "tok", "band_lr": "tok", "nb_band": "tok", "nb_all": "tok"}
+ROUTER_INPUT = {"centroid": "vec", "vocab_lr": "tok", "band_lr": "tok", "nb_band": "tok", "nb_all": "tok",
+                "centroid_full": "vec_full", "nb_band_bin": "tok", "cnb_band": "tok"}
+# vec = embedding of the first excerpt_chars; vec_full = mean chunk embedding of the whole document
 FUSED = ("centroid", "nb_band")
 
 
@@ -63,6 +65,13 @@ def make_router(name: str, rc: dict, seed: int):
         return NBRouter(band, rc["nb_alpha"])
     if name == "nb_all":
         return NBRouter(all_words_selector(), rc["nb_alpha"])
+    if name == "centroid_full":
+        return CentroidRouter()
+    alpha_band = band_selector(rc["band_low"], rc["band_high"], alpha_only=True)
+    if name == "nb_band_bin":
+        return NBRouter(alpha_band, rc["nb_alpha"], binary=True)
+    if name == "cnb_band":
+        return NBRouter(alpha_band, rc["nb_alpha"], complement=True)
     raise ValueError(f"unknown router {name!r}")
 
 
@@ -76,8 +85,13 @@ def rrf_fuse(score_mats: list[np.ndarray], k: int) -> np.ndarray:
 
 def level_ranks(level: Level, names: list[str], cfg: dict, d_fold: np.ndarray, doc_vecs: np.ndarray,
                 doc_tokens: list[list[str]], item_fold: np.ndarray, item_vecs: np.ndarray,
-                item_tokens: list[list[str]]) -> tuple[dict, dict]:
-    """Per router: 1-based rank of each item's gold group (0 = not scored) and the top-1 group."""
+                item_tokens: list[list[str]], doc_vecs_full: np.ndarray | None = None,
+                item_vecs_full: np.ndarray | None = None) -> tuple[dict, dict]:
+    """Per router: 1-based rank of each item's gold group (0 = not scored) and the top-1 group.
+
+    doc_vecs_full / item_vecs_full feed the vec_full routers (whole-document embeddings); for
+    query items pass the query vectors again, for document items their whole-document vectors.
+    """
     rc = cfg["routing"]
     all_names = names + (["fused"] if all(n in names for n in FUSED) else [])
     ranks = {n: np.zeros(len(item_fold), dtype=int) for n in all_names}
@@ -90,10 +104,11 @@ def level_ranks(level: Level, names: list[str], cfg: dict, d_fold: np.ndarray, d
         labels, gold = list(level.doc_labels[tr]), list(level.item_gold[te])
         scores, groups = {}, {}
         for name in names:
-            vec = ROUTER_INPUT[name] == "vec"
+            kind = ROUTER_INPUT[name]
+            dv, iv = (doc_vecs, item_vecs) if kind == "vec" else (doc_vecs_full, item_vecs_full)
             router = make_router(name, rc, cfg["seed"]).fit(
-                doc_vecs[tr] if vec else [doc_tokens[i] for i in tr], labels)
-            scores[name] = router.scores(item_vecs[te] if vec else [item_tokens[i] for i in te])
+                dv[tr] if kind != "tok" else [doc_tokens[i] for i in tr], labels)
+            scores[name] = router.scores(iv[te] if kind != "tok" else [item_tokens[i] for i in te])
             groups[name] = router.groups
         if "fused" in all_names:
             assert groups["centroid"] == groups["nb_band"]

@@ -114,3 +114,31 @@ def test_folds_have_no_overlap_and_keep_near_duplicates_together() -> None:
     assert folds["d0"] == folds["d1"] and folds["d2"] == folds["d3"]
     for f in range(4):                                  # every group still trains in every fold
         assert {groups[d] for d in ids if folds[d] != f} == {"a", "b"}
+
+
+def test_alpha_only_band_drops_numbers_and_underscores() -> None:
+    from trr.routing.routers import band_vocab
+    docs = [["term", "1997", "___", "lease"], ["term", "01", "lease"], ["merger", "1997", "___"], ["merger", "cash"]]
+    assert "1997" in band_vocab(docs, 0.25, 0.5) and "___" in band_vocab(docs, 0.25, 0.5)
+    kept = band_vocab(docs, 0.25, 0.5, alpha_only=True)
+    assert kept == ["cash", "lease", "merger", "term"]  # "01", "1997", "___" gone
+
+
+def test_binary_counts_stop_one_repeated_word_from_deciding() -> None:
+    from trr.routing.routers import NBRouter, all_words_selector
+    docs = [["agency", "agent", "commission"], ["agency", "agent", "principal"],
+            ["merger", "bank", "shares"], ["merger", "bank", "closing"]]
+    labels = ["agency", "agency", "merger", "merger"]
+    text = [["bank"] * 30 + ["agency", "agent", "commission", "principal"]]
+    counted = NBRouter(all_words_selector(), 1.0).fit(docs, labels)
+    binary = NBRouter(all_words_selector(), 1.0, binary=True).fit(docs, labels)
+    assert counted.groups[int(counted.scores(text).argmax())] == "merger"   # "bank" x30 wins
+    assert binary.groups[int(binary.scores(text).argmax())] == "agency"     # each word counts once
+
+
+def test_complement_nb_router_ranks_groups() -> None:
+    from trr.routing.routers import NBRouter, all_words_selector
+    docs = [["licence", "royalty"], ["licence", "patent"], ["supply", "goods"], ["supply", "delivery"]]
+    r = NBRouter(all_words_selector(), 1.0, complement=True).fit(docs, ["lic", "lic", "sup", "sup"])
+    s = r.scores([["royalty", "patent"], ["goods", "delivery"]])
+    assert [r.groups[i] for i in s.argmax(axis=1)] == ["lic", "sup"]

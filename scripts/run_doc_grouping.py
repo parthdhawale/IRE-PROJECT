@@ -24,7 +24,7 @@ from trr.config import git_hash, load_config, set_seeds  # noqa: E402
 from trr.routing.evaluate import build_levels, end_to_end, gate_report, level_ranks, summarise  # noqa: E402
 from trr.routing.prep import load_setup  # noqa: E402
 
-NAMES = ["centroid", "vocab_lr", "band_lr", "nb_band", "nb_all"]
+NAMES = ["centroid", "vocab_lr", "band_lr", "nb_band", "nb_all", "centroid_full", "nb_band_bin", "cnb_band"]
 
 
 def main() -> None:
@@ -38,7 +38,7 @@ def main() -> None:
     results = {}
     for lv in levels:
         results[lv.name] = level_ranks(lv, NAMES, cfg, S.d_fold, S.doc_vecs, S.doc_tokens,
-                                       S.d_fold, S.doc_vecs, S.doc_tokens)
+                                       S.d_fold, S.doc_vecs, S.doc_tokens, S.doc_vecs_full, S.doc_vecs_full)
         print(f"level {lv.name} done", flush=True)
     routers = list(results["flat"][0])
 

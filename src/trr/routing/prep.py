@@ -37,6 +37,26 @@ def cached_embeddings(name: str, texts: list[str], encode, key: dict, cache: Pat
     return vecs.astype(np.float16).astype(np.float32)
 
 
+def doc_full_vectors(cfg: dict, docs) -> np.ndarray:
+    """(n_docs, dim) whole-document vectors: the normalised mean of each document's 500-char
+    chunk embeddings (the same cached vectors the dense baseline uses), so a merger agreement is
+    represented by all of its text rather than its cover page and table of contents."""
+    from trr.retrievers.chunk_store import ChunkStore
+
+    store = ChunkStore(cfg)
+    by_subset: dict[str, list] = {}
+    for d in docs:
+        by_subset.setdefault(d.subset, []).append(d)
+    vec = {}
+    for subset, ds in by_subset.items():
+        store.add(ds)
+        emb, rows = store.embeddings(subset), store.subsets[subset].doc_rows
+        for d in ds:
+            m = emb[rows[d.doc_id]].mean(axis=0)
+            vec[d.doc_id] = m / np.linalg.norm(m)
+    return np.stack([vec[d.doc_id] for d in docs]).astype(np.float32)
+
+
 def load_setup(cfg: dict) -> SimpleNamespace:
     """Everything both routing experiments share: the mixed pool, its groups, leak-safe folds,
     document embeddings and tokens. Identical across scripts, so their numbers are comparable."""
@@ -55,6 +75,7 @@ def load_setup(cfg: dict) -> SimpleNamespace:
     doc_vecs = cached_embeddings("docs", [d.text[:rc["excerpt_chars"]] for d in docs], emb.encode, key, cache)
     return SimpleNamespace(
         docs=docs, doc_ids=doc_ids, emb=emb, cache=cache, doc_vecs=doc_vecs,
+        doc_vecs_full=doc_full_vectors(cfg, docs),
         doc_tokens=tokenize_words([d.text for d in docs]),
         doc_subset=np.array([d.subset for d in docs]), doc_group=np.array([groups[d] for d in doc_ids]),
         d_fold=np.array([folds[d] for d in doc_ids]),

@@ -27,7 +27,7 @@ from trr.retrievers.flat import DenseRetriever, _hits, rrf_fuse
 from trr.routing.evaluate import FUSED, ROUTER_INPUT, make_router
 from trr.routing.evaluate import rrf_fuse as rrf_fuse_scores
 from trr.routing.groups import assign_groups
-from trr.routing.prep import cached_embeddings
+from trr.routing.prep import cached_embeddings, doc_full_vectors
 from trr.routing.routers import tokenize_words
 
 POOL = "all"
@@ -55,10 +55,9 @@ class GroupRouter:
         doc_vecs = cached_embeddings("docs", [d.text[:rc["excerpt_chars"]] for d in docs], emb.encode, key,
                                      Path(cfg["paths"]["cache"]))
         self.doc_tokens = tokenize_words([d.text for d in docs])  # same preprocessing as BM25
-        self.routers = {}
-        for name in ROUTER_INPUT:
-            r = make_router(name, rc, cfg["seed"])
-            self.routers[name] = r.fit(doc_vecs if ROUTER_INPUT[name] == "vec" else self.doc_tokens, labels)
+        inputs = {"vec": doc_vecs, "vec_full": doc_full_vectors(cfg, docs), "tok": self.doc_tokens}
+        self.routers = {name: make_router(name, rc, cfg["seed"]).fit(inputs[kind], labels)
+                        for name, kind in ROUTER_INPUT.items()}
         self._local: dict[tuple[str, ...], tuple[bm25s.BM25, np.ndarray]] = {}
         b = cfg["bm25"]
         self.doc_bm25 = bm25s.BM25(k1=b["k1"], b=b["b"])
@@ -81,7 +80,7 @@ class GroupRouter:
 
     def _scores(self, name: str, query: str, qvec: np.ndarray) -> tuple[np.ndarray, list[str]]:
         r = self.routers[name]
-        s = r.scores(qvec[None, :]) if ROUTER_INPUT[name] == "vec" else r.scores(tokenize_words([query]))
+        s = r.scores(tokenize_words([query])) if ROUTER_INPUT[name] == "tok" else r.scores(qvec[None, :])
         return s[0], list(r.groups)
 
     def rank_groups(self, name: str, query: str, qvec: np.ndarray) -> list[str]:
