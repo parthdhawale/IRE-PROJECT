@@ -118,3 +118,27 @@ def paired_bootstrap_ci(a: Sequence[float], b: Sequence[float], resamples: int =
     means = d[idx].mean(axis=1)
     lo, hi = np.quantile(means, [alpha / 2, 1 - alpha / 2])
     return float(d.mean()), float(lo), float(hi)
+
+
+def paired_cluster_bootstrap_macro_ci(diffs: dict[str, list[np.ndarray]], resamples: int = 1000,
+                                      seed: int = 0, alpha: float = 0.05) -> tuple[float, float, float]:
+    """Macro mean over subsets of the mean per-query difference (a - b), with a bootstrap CI.
+
+    diffs[subset] = one array of per-query differences per cluster. With the gold document as
+    the cluster, questions about one document -- which tend to succeed or fail together -- are
+    resampled together, so the CI is not made too narrow by treating them as independent.
+    Resampling is stratified: every subset draws its own clusters, as the macro mean weighs
+    every subset equally. With one query per cluster and one subset this is
+    paired_bootstrap_ci.
+    """
+    rng = np.random.default_rng(seed)
+    points, boot = [], []
+    for clusters in diffs.values():
+        sums = np.array([c.sum() for c in clusters], dtype=float)
+        counts = np.array([len(c) for c in clusters], dtype=float)
+        idx = rng.integers(0, len(clusters), size=(resamples, len(clusters)))
+        points.append(sums.sum() / counts.sum())
+        boot.append(sums[idx].sum(axis=1) / counts[idx].sum(axis=1))
+    means = np.mean(boot, axis=0)
+    lo, hi = np.quantile(means, [alpha / 2, 1 - alpha / 2])
+    return float(np.mean(points)), float(lo), float(hi)

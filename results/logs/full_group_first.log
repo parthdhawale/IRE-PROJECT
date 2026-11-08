@@ -1,0 +1,66 @@
+W1108 14:35:07.310000 15053 torch/distributed/elastic/multiprocessing/redirects.py:35] NOTE: Redirects are currently not supported in MacOs.
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|██████████| 199/199 [00:00<00:00, 21677.96it/s]
+mixed pool: 714 documents, 206869 chunks
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|██████████| 199/199 [00:00<00:00, 25282.96it/s]
+4 groups
+mixed_hybrid               contractnli  in_beam=1.000 DRM@8=0.904 charR@8=0.095
+mixed_hybrid               cuad         in_beam=1.000 DRM@8=0.211 charR@8=0.111
+mixed_hybrid               maud         in_beam=1.000 DRM@8=0.462 charR@8=0.013
+mixed_hybrid               privacy_qa   in_beam=1.000 DRM@8=0.251 charR@8=0.154
+mixed_docfirst             contractnli  in_beam=1.000 DRM@8=0.318 charR@8=0.465
+mixed_docfirst             cuad         in_beam=1.000 DRM@8=0.024 charR@8=0.232
+mixed_docfirst             maud         in_beam=1.000 DRM@8=0.008 charR@8=0.153
+mixed_docfirst             privacy_qa   in_beam=1.000 DRM@8=0.294 charR@8=0.237
+mixed_docfirst_local       contractnli  in_beam=1.000 DRM@8=0.318 charR@8=0.465
+mixed_docfirst_local       cuad         in_beam=1.000 DRM@8=0.024 charR@8=0.232
+mixed_docfirst_local       maud         in_beam=1.000 DRM@8=0.008 charR@8=0.153
+mixed_docfirst_local       privacy_qa   in_beam=1.000 DRM@8=0.294 charR@8=0.237
+mixed_docfirst_local_hdr   contractnli  in_beam=1.000 DRM@8=0.306 charR@8=0.472
+mixed_docfirst_local_hdr   cuad         in_beam=1.000 DRM@8=0.023 charR@8=0.232
+mixed_docfirst_local_hdr   maud         in_beam=1.000 DRM@8=0.007 charR@8=0.153
+mixed_docfirst_local_hdr   privacy_qa   in_beam=1.000 DRM@8=0.340 charR@8=0.220
+mixed_docfirst_local_rrf   contractnli  in_beam=1.000 DRM@8=0.301 charR@8=0.477
+mixed_docfirst_local_rrf   cuad         in_beam=1.000 DRM@8=0.022 charR@8=0.232
+mixed_docfirst_local_rrf   maud         in_beam=1.000 DRM@8=0.007 charR@8=0.153
+mixed_docfirst_local_rrf   privacy_qa   in_beam=1.000 DRM@8=0.351 charR@8=0.210
+gfc_oracle_b1_hybrid       contractnli  in_beam=1.000 DRM@8=0.874 charR@8=0.133
+gfc_oracle_b1_hybrid       cuad         in_beam=1.000 DRM@8=0.202 charR@8=0.113
+gfc_oracle_b1_hybrid       maud         in_beam=1.000 DRM@8=0.470 charR@8=0.014
+gfc_oracle_b1_hybrid       privacy_qa   in_beam=1.000 DRM@8=0.213 charR@8=0.158
+gfc_oracle_b1_docfirst     contractnli  in_beam=1.000 DRM@8=0.242 charR@8=0.516
+gfc_oracle_b1_docfirst     cuad         in_beam=1.000 DRM@8=0.024 charR@8=0.232
+gfc_oracle_b1_docfirst     maud         in_beam=1.000 DRM@8=0.008 charR@8=0.153
+gfc_oracle_b1_docfirst     privacy_qa   in_beam=1.000 DRM@8=0.258 charR@8=0.263
+gfc_oracle_b1_docfirst_local contractnli  in_beam=1.000 DRM@8=0.302 charR@8=0.474
+gfc_oracle_b1_docfirst_local cuad         in_beam=1.000 DRM@8=0.022 charR@8=0.232
+gfc_oracle_b1_docfirst_local maud         in_beam=1.000 DRM@8=0.008 charR@8=0.153
+gfc_oracle_b1_docfirst_local privacy_qa   in_beam=1.000 DRM@8=0.284 charR@8=0.241
+gfc_oracle_b1_docfirst_local_hdr contractnli  in_beam=1.000 DRM@8=0.250 charR@8=0.508
+gfc_oracle_b1_docfirst_local_hdr cuad         in_beam=1.000 DRM@8=0.022 charR@8=0.233
+gfc_oracle_b1_docfirst_local_hdr maud         in_beam=1.000 DRM@8=0.007 charR@8=0.153
+gfc_oracle_b1_docfirst_local_hdr privacy_qa   in_beam=1.000 DRM@8=0.000 charR@8=0.371
+gfc_oracle_b1_docfirst_local_rrf contractnli  in_beam=1.000 DRM@8=0.256 charR@8=0.504
+gfc_oracle_b1_docfirst_local_rrf cuad         in_beam=1.000 DRM@8=0.021 charR@8=0.233
+gfc_oracle_b1_docfirst_local_rrf maud         in_beam=1.000 DRM@8=0.007 charR@8=0.153
+gfc_oracle_b1_docfirst_local_rrf privacy_qa   in_beam=1.000 DRM@8=0.134 charR@8=0.306
+gfc_centroid_full_b2_hybrid contractnli  in_beam=0.998 DRM@8=0.903 charR@8=0.095
+gfc_centroid_full_b2_hybrid cuad         in_beam=1.000 DRM@8=0.211 charR@8=0.111
+gfc_centroid_full_b2_hybrid maud         in_beam=1.000 DRM@8=0.462 charR@8=0.013
+gfc_centroid_full_b2_hybrid privacy_qa   in_beam=1.000 DRM@8=0.225 charR@8=0.153
+gfc_centroid_full_b2_docfirst contractnli  in_beam=0.998 DRM@8=0.302 charR@8=0.474
+gfc_centroid_full_b2_docfirst cuad         in_beam=1.000 DRM@8=0.024 charR@8=0.232
+gfc_centroid_full_b2_docfirst maud         in_beam=1.000 DRM@8=0.008 charR@8=0.153
+gfc_centroid_full_b2_docfirst privacy_qa   in_beam=1.000 DRM@8=0.278 charR@8=0.249
+gfc_centroid_full_b2_docfirst_local contractnli  in_beam=0.998 DRM@8=0.286 charR@8=0.487
+gfc_centroid_full_b2_docfirst_local cuad         in_beam=1.000 DRM@8=0.024 charR@8=0.232
+gfc_centroid_full_b2_docfirst_local maud         in_beam=1.000 DRM@8=0.008 charR@8=0.154
+gfc_centroid_full_b2_docfirst_local privacy_qa   in_beam=1.000 DRM@8=0.258 charR@8=0.257
+gfc_centroid_full_b2_docfirst_local_hdr contractnli  in_beam=0.998 DRM@8=0.257 charR@8=0.504
+gfc_centroid_full_b2_docfirst_local_hdr cuad         in_beam=1.000 DRM@8=0.024 charR@8=0.232
+gfc_centroid_full_b2_docfirst_local_hdr maud         in_beam=1.000 DRM@8=0.007 charR@8=0.153
+gfc_centroid_full_b2_docfirst_local_hdr privacy_qa   in_beam=1.000 DRM@8=0.155 charR@8=0.294
+gfc_centroid_full_b2_docfirst_local_rrf contractnli  in_beam=0.998 DRM@8=0.261 charR@8=0.502
+gfc_centroid_full_b2_docfirst_local_rrf cuad         in_beam=1.000 DRM@8=0.023 charR@8=0.232
+gfc_centroid_full_b2_docfirst_local_rrf maud         in_beam=1.000 DRM@8=0.007 charR@8=0.153
+gfc_centroid_full_b2_docfirst_local_rrf privacy_qa   in_beam=1.000 DRM@8=0.139 charR@8=0.313
+wrote /Users/parth/Documents/ire-project/results/tables/group_first_full.csv

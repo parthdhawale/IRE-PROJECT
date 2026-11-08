@@ -1,0 +1,40 @@
+W1108 14:35:05.864000 15051 torch/distributed/elastic/multiprocessing/redirects.py:35] NOTE: Redirects are currently not supported in MacOs.
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|██████████| 199/199 [00:00<00:00, 7736.77it/s]
+contractnli  bm25      DRM@8=0.859 docR@8=0.606 charR@8=0.096 p50=0.1ms
+contractnli  dense     DRM@8=0.898 docR@8=0.468 charR@8=0.101 p50=0.1ms
+contractnli  hybrid    DRM@8=0.863 docR@8=0.585 charR@8=0.137 p50=0.3ms
+contractnli  oracle    DRM@8=0.000 docR@8=1.000 charR@8=0.689 p50=0.0ms
+contractnli  docfirst  DRM@8=0.302 docR@8=0.698 charR@8=0.474 p50=0.1ms
+contractnli  docfirst_hdr DRM@8=0.248 docR@8=0.752 charR@8=0.509 p50=0.1ms
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|██████████| 199/199 [00:00<00:00, 22152.62it/s]
+contractnli  leaf_bm25 DRM@8=0.856 docR@8=0.609 charR@8=0.145 p50=0.1ms
+contractnli  leaf_dense DRM@8=0.881 docR@8=0.570 charR@8=0.160 p50=0.1ms
+contractnli  leaf_hybrid DRM@8=0.857 docR@8=0.650 charR@8=0.189 p50=0.3ms
+cuad         bm25      DRM@8=0.239 docR@8=1.000 charR@8=0.059 p50=0.3ms
+cuad         dense     DRM@8=0.249 docR@8=0.998 charR@8=0.151 p50=1.6ms
+cuad         hybrid    DRM@8=0.203 docR@8=1.000 charR@8=0.117 p50=2.2ms
+cuad         oracle    DRM@8=0.000 docR@8=1.000 charR@8=0.239 p50=0.1ms
+cuad         docfirst  DRM@8=0.022 docR@8=0.978 charR@8=0.232 p50=0.1ms
+cuad         docfirst_hdr DRM@8=0.023 docR@8=0.977 charR@8=0.233 p50=0.1ms
+cuad         leaf_bm25 DRM@8=0.250 docR@8=1.000 charR@8=0.126 p50=0.3ms
+cuad         leaf_dense DRM@8=0.258 docR@8=0.999 charR@8=0.246 p50=1.2ms
+cuad         leaf_hybrid DRM@8=0.213 docR@8=1.000 charR@8=0.201 p50=1.7ms
+maud         bm25      DRM@8=0.329 docR@8=1.000 charR@8=0.004 p50=0.7ms
+maud         dense     DRM@8=0.678 docR@8=0.848 charR@8=0.016 p50=3.2ms
+maud         hybrid    DRM@8=0.451 docR@8=0.990 charR@8=0.012 p50=4.8ms
+maud         oracle    DRM@8=0.000 docR@8=1.000 charR@8=0.154 p50=0.2ms
+maud         docfirst  DRM@8=0.008 docR@8=0.992 charR@8=0.153 p50=0.3ms
+maud         docfirst_hdr DRM@8=0.007 docR@8=0.993 charR@8=0.153 p50=0.2ms
+maud         leaf_bm25 DRM@8=0.305 docR@8=1.000 charR@8=0.011 p50=0.6ms
+maud         leaf_dense DRM@8=0.720 docR@8=0.822 charR@8=0.024 p50=2.2ms
+maud         leaf_hybrid DRM@8=0.501 docR@8=0.969 charR@8=0.029 p50=3.5ms
+privacy_qa   bm25      DRM@8=0.522 docR@8=0.979 charR@8=0.137 p50=0.1ms
+privacy_qa   dense     DRM@8=0.233 docR@8=0.959 charR@8=0.232 p50=0.1ms
+privacy_qa   hybrid    DRM@8=0.229 docR@8=0.990 charR@8=0.213 p50=0.4ms
+privacy_qa   oracle    DRM@8=0.000 docR@8=1.000 charR@8=0.371 p50=0.1ms
+privacy_qa   docfirst  DRM@8=0.284 docR@8=0.716 charR@8=0.241 p50=0.2ms
+privacy_qa   docfirst_hdr DRM@8=0.000 docR@8=1.000 charR@8=0.371 p50=0.2ms
+privacy_qa   leaf_bm25 DRM@8=0.470 docR@8=0.990 charR@8=0.456 p50=0.2ms
+privacy_qa   leaf_dense DRM@8=0.258 docR@8=0.948 charR@8=0.664 p50=0.1ms
+privacy_qa   leaf_hybrid DRM@8=0.284 docR@8=0.964 charR@8=0.637 p50=0.3ms
+wrote /Users/parth/Documents/ire-project/results/tables/baselines_full.csv and baselines_full.md

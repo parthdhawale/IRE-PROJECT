@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
 from trr.data.load import GoldSpan
@@ -12,6 +13,7 @@ from trr.eval.metrics import (
     intersection_length,
     merge_intervals,
     paired_bootstrap_ci,
+    paired_cluster_bootstrap_macro_ci,
     query_metrics,
 )
 from trr.retrievers.base import Hit
@@ -89,3 +91,23 @@ def test_paired_bootstrap() -> None:
     mean, lo, hi = paired_bootstrap_ci([1, 0] * 50, [0, 1] * 50, resamples=500, seed=0)
     assert mean == 0.0 and lo < 0 < hi
     assert paired_bootstrap_ci([1, 0, 1], [0, 0, 0], seed=0) == paired_bootstrap_ci([1, 0, 1], [0, 0, 0], seed=0)
+
+
+def test_cluster_bootstrap_with_singletons_equals_query_bootstrap() -> None:
+    a, b = [1, 0, 1, 1, 0, 0, 1], [0, 0, 1, 0, 1, 0, 0]
+    d = [np.array([x - y], dtype=float) for x, y in zip(a, b)]
+    assert paired_cluster_bootstrap_macro_ci({"s": d}, seed=3) == paired_bootstrap_ci(a, b, seed=3)
+
+
+def test_cluster_bootstrap_macro_weighs_subsets_equally() -> None:
+    # subset s1: 10 queries all -1; subset s2: 2 queries all 0 -> macro mean -0.5, not -10/12
+    diffs = {"s1": [np.full(5, -1.0), np.full(5, -1.0)], "s2": [np.zeros(1), np.zeros(1)]}
+    assert paired_cluster_bootstrap_macro_ci(diffs, resamples=200) == (-0.5, -0.5, -0.5)
+
+
+def test_cluster_bootstrap_is_wider_when_errors_cluster() -> None:
+    # same 20 differences, either as 20 independent queries or as 2 documents of 10
+    vals = np.array([-1.0] * 10 + [0.0] * 10)
+    _, lo_q, hi_q = paired_cluster_bootstrap_macro_ci({"s": [np.array([v]) for v in vals]}, seed=0)
+    _, lo_d, hi_d = paired_cluster_bootstrap_macro_ci({"s": [vals[:10], vals[10:]]}, seed=0)
+    assert hi_d - lo_d > hi_q - lo_q
