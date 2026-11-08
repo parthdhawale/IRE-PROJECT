@@ -92,5 +92,7 @@ group_first:
   # "none" = no routing (flat mixed-pool baseline), "oracle" = gold group (routing upper bound).
   routers: [none, oracle, centroid, nb_all, nb_band, fused]
   beams: [1, 2, 3]          # top-B groups searched (ignored for none / oracle)
-  inners: [dense, hybrid, docfirst, docfirst_local]
+  # *_hdr = doc-first that picks the document with the query header only (query_split.py);
+  # docfirst_local_rrf = RRF of the header-only and full-query document rankings
+  inners: [dense, hybrid, docfirst, docfirst_local, docfirst_hdr, docfirst_local_hdr, docfirst_local_rrf]
   table_ks: [1, 8, 64]

@@ -4,6 +4,7 @@ Look-alike documents of another kind are one cause of DRM (a merger agreement an
 question). So before any chunk is scored, a router (src/trr/routing/routers.py) ranks the
 document groups -- the 3 non-CUAD collections plus the CUAD contract types -- and the inner
 search (BM25, dense, hybrid or doc-first) only sees chunks of documents in the top-B groups.
+Doc-first inners ending in "_hdr" pick the document with the query header only.
 
 Everything runs on ONE mixed pool of all 714 documents, so a wrong group really can be chosen.
 router="none" searches every group: that is the flat mixed-pool baseline through the same code.
@@ -24,6 +25,7 @@ from trr.data.load import Document
 from trr.retrievers.base import Hit
 from trr.retrievers.chunk_store import ChunkStore, tokenize
 from trr.retrievers.flat import DenseRetriever, _hits, rrf_fuse
+from trr.retrievers.query_split import split_query
 from trr.routing.evaluate import FUSED, ROUTER_INPUT, make_router
 from trr.routing.evaluate import rrf_fuse as rrf_fuse_scores
 from trr.routing.groups import assign_groups
@@ -136,10 +138,11 @@ class GroupFirstRetriever(DenseRetriever):
             den, _ = _top(emb[rows] @ qv, rows, h["depth"])
             top, scores = rrf_fuse([lex, den], h["rrf_k"])
             top, scores = top[:k], scores[:k]
-        elif self.inner in ("docfirst", "docfirst_local"):
+        elif self.inner.removesuffix("_hdr") in ("docfirst", "docfirst_local"):
             # docfirst: pool-wide doc BM25 restricted to the groups; _local: an index of the groups alone
-            words = bm25s.tokenize([query], lower=True, stopwords="en", return_ids=False, show_progress=False)[0]
-            if self.inner == "docfirst":
+            # _hdr: only the query header picks the document (query segmentation, query_split.py)
+            words = _words(split_query(query)[0] if self.inner.endswith("_hdr") else query)
+            if self.inner.removesuffix("_hdr") == "docfirst":
                 allowed = np.concatenate([self.gr.group_docs[g] for g in groups])
                 doc_scores = np.asarray(self.gr.doc_bm25.get_scores(words))[allowed]
             else:
@@ -147,9 +150,23 @@ class GroupFirstRetriever(DenseRetriever):
                 doc_scores = np.asarray(model.get_scores(words))
             best = self.gr.docs[allowed[int(np.argmax(doc_scores))]].doc_id
             top, scores = self.store.dense_search_in_docs(POOL, qv, {best}, k)
+        elif self.inner == "docfirst_local_rrf":
+            # rank the groups' documents twice -- by the header (which document) and by the full
+            # query (which kind of document) -- and fuse the two rankings with RRF, as in hybrid
+            model, allowed = self.gr.local_doc_index(groups)
+            ranks = [np.argsort(-np.asarray(model.get_scores(_words(t))), kind="stable")
+                     for t in (split_query(query)[0], query)]
+            fused, _ = rrf_fuse(ranks, self.store.cfg["hybrid"]["rrf_k"])
+            best = self.gr.docs[allowed[fused[0]]].doc_id
+            top, scores = self.store.dense_search_in_docs(POOL, qv, {best}, k)
         else:
             raise ValueError(f"unknown inner search {self.inner!r}")
         return _hits(self.store, POOL, top, scores)
+
+
+def _words(text: str) -> list[str]:
+    """BM25 query words: lower-cased, English stopwords removed (as the indexes)."""
+    return bm25s.tokenize([text], lower=True, stopwords="en", return_ids=False, show_progress=False)[0]
 
 
 def _top(scores: np.ndarray, rows: np.ndarray, k: int) -> tuple[np.ndarray, np.ndarray]:
