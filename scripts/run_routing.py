@@ -9,6 +9,7 @@ Queries are never used for fitting.
 
     python scripts/run_routing.py            # gates
     python scripts/run_routing.py --sweep    # + band_lr sensitivity to band edges (flat level)
+    python scripts/run_routing.py --question-only   # strip the "Consider ...;" header from queries
 
 Writes results/runs/routing_full.jsonl, results/tables/routing.md, results/notes/routing_gate.md.
 """
@@ -31,7 +32,13 @@ from trr.routing.evaluate import build_levels, end_to_end, gate_report, level_ra
 from trr.routing.prep import cached_embeddings, load_setup  # noqa: E402
 from trr.routing.routers import VocabLRRouter, band_selector, gold_rank, tokenize_words  # noqa: E402
 
-NAMES = ["centroid", "vocab_lr", "band_lr", "nb_band", "nb_all"]
+NAMES = ["centroid", "vocab_lr", "band_lr", "nb_band", "nb_all", "centroid_full", "nb_band_bin", "cnb_band"]
+
+
+def question_only(text: str) -> str:
+    """Drop the benchmark's header ("Consider the NDA between X and Y; ...") and keep the question,
+    to test routing without the document-type and party names the header gives away."""
+    return text.split(";", 1)[1].strip() if ";" in text else text
 
 
 def band_sweep(cfg, S, level, q_fold, q_tokens, q_subset) -> pd.DataFrame:
@@ -57,32 +64,38 @@ def band_sweep(cfg, S, level, q_fold, q_tokens, q_subset) -> pd.DataFrame:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--sweep", action="store_true", help="also run the band_lr band-edge sweep")
+    ap.add_argument("--question-only", action="store_true", help="route on the question without its header")
     args = ap.parse_args()
     cfg = load_config()
     set_seeds(cfg["seed"])
     rc, raw, subsets = cfg["routing"], cfg["paths"]["raw"], cfg["data"]["subsets"]
-    S = load_setup(cfg)
+    S = load_setup(cfg, full_vectors=True)   # centroid_full needs whole-document vectors
 
     queries = [q for s in subsets for q in load_queries(raw, s, "full")]
     mini = {q.qid for s in subsets for q in load_queries(raw, s, "mini", cfg["data"]["mini_per_subset"])}
     index = {d: i for i, d in enumerate(S.doc_ids)}
     item_doc = np.array([index[sorted(q.gold_docs)[0]] for q in queries])
+    texts = [question_only(q.text) if args.question_only else q.text for q in queries]
+    suffix = "_qonly" if args.question_only else ""
     qkey = {"model": S.emb.model_name, "prefix": S.emb.query_prefix, "n": len(queries)}
-    q_vecs = cached_embeddings("queries", [q.text for q in queries], S.emb.encode_queries, qkey, S.cache)
-    q_tokens = tokenize_words([q.text for q in queries])
+    if args.question_only:
+        qkey["question_only"] = True  # keeps the original cache key unchanged
+    q_vecs = cached_embeddings("queries", texts, S.emb.encode_queries, qkey, S.cache)
+    q_tokens = tokenize_words(texts)
     q_fold, q_subset = S.d_fold[item_doc], S.doc_subset[item_doc]
     is_mini = np.array([q.qid in mini for q in queries])
 
     levels = build_levels(S.doc_subset, S.doc_group, item_doc)
     results = {}
     for lv in levels:
-        results[lv.name] = level_ranks(lv, NAMES, cfg, S.d_fold, S.doc_vecs, S.doc_tokens, q_fold, q_vecs, q_tokens)
+        results[lv.name] = level_ranks(lv, NAMES, cfg, S.d_fold, S.doc_vecs, S.doc_tokens, q_fold, q_vecs, q_tokens,
+                                       S.doc_vecs_full, q_vecs)
         print(f"level {lv.name} done", flush=True)
     routers = list(results["flat"][0])
 
     runs = Path(cfg["paths"]["runs"])
     runs.mkdir(parents=True, exist_ok=True)
-    with open(runs / "routing_full.jsonl", "w") as fh:
+    with open(runs / f"routing_full{suffix}.jsonl", "w") as fh:
         fh.write(json.dumps({"_header": True, "git": git_hash(), "config": cfg}) + "\n")
         for i, q in enumerate(queries):
             fh.write(json.dumps({"qid": q.qid, "subset": str(q_subset[i]), "mini": bool(is_mini[i]),
@@ -113,7 +126,8 @@ def main() -> None:
     sweep_md = ""
     if args.sweep:
         sweep_md = band_sweep(cfg, S, levels[0], q_fold, q_tokens, q_subset).to_markdown(index=False)
-    (tables / "routing.md").write_text("# Query routing per level (leak-safe document folds)\n\n" + md + "\n"
+    title = "# Query routing per level (leak-safe document folds)" + (", question only" if suffix else "")
+    (tables / f"routing{suffix}.md").write_text(title + "\n\n" + md + "\n"
                                        + (f"\n## band_lr band-edge sweep (flat)\n\n{sweep_md}\n" if sweep_md else ""))
     note = [
         "# Query routing go/no-go, per level\n", *gate_lines, "",
@@ -140,7 +154,7 @@ def main() -> None:
         f"## Most frequent fine-level confusions ({best_fine}, top-1)\n",
         *[f"- {n}x `{g}` -> `{p}`" for (g, p), n in confusions],
     ]
-    (notes / "routing_gate.md").write_text("\n".join(note) + "\n")
+    (notes / f"routing_gate{suffix}.md").write_text("\n".join(note) + "\n")
     print("\n".join(gate_lines))
     print("end-to-end CUAD:", e2e)
 

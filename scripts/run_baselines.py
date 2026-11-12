@@ -19,6 +19,7 @@ from trr.data.load import load_subset  # noqa: E402
 from trr.eval.run import aggregate, run_subset  # noqa: E402
 from trr.retrievers.chunk_store import ChunkStore  # noqa: E402
 from trr.retrievers.flat import BASELINES  # noqa: E402
+from trr.retrievers.leaf_store import LeafStore  # noqa: E402
 
 TABLE_KS = [1, 4, 16, 64]
 
@@ -34,8 +35,8 @@ def main() -> None:
     set_seeds(cfg["seed"])
     ks = cfg["eval"]["ks"]
     subsets = args.subsets.split(",") if args.subsets else cfg["data"]["subsets"]
-    store = ChunkStore(cfg)
-    retrievers = [BASELINES[m](store) for m in args.methods.split(",")]
+    stores = {"chunk": ChunkStore(cfg), "leaf": LeafStore(cfg)}
+    retrievers = [BASELINES[m](stores[BASELINES[m].store_kind]) for m in args.methods.split(",")]
 
     tables = []
     for subset in subsets:

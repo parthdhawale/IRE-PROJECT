@@ -12,6 +12,7 @@ import numpy as np
 from trr.data.load import Document
 from trr.retrievers.base import Hit
 from trr.retrievers.chunk_store import ChunkStore, tokenize
+from trr.retrievers.query_split import split_query
 
 
 def _hits(store: ChunkStore, subset: str, rows, scores) -> list[Hit]:
@@ -22,6 +23,7 @@ def _hits(store: ChunkStore, subset: str, rows, scores) -> list[Hit]:
 
 class _Base:
     name = "base"
+    store_kind = "chunk"   # "chunk" = 500-char chunks, "leaf" = section-tree leaves
 
     def __init__(self, store: ChunkStore):
         self.store = store
@@ -124,12 +126,45 @@ class DocFirstRetriever(DenseRetriever):
             model.index(tokenize([d.text for d in docs]), show_progress=False)
             self._doc_bm25[subset] = (model, [d.doc_id for d in docs])
 
+    def doc_query(self, query: str) -> str:
+        """Text used to pick the document (stage 1): the full query."""
+        return query
+
     def retrieve(self, query: str, k: int, pool: str) -> list[Hit]:
         model, ids = self._doc_bm25[pool]
-        top, _ = model.retrieve(tokenize([query]), k=1, show_progress=False)
+        top, _ = model.retrieve(tokenize([self.doc_query(query)]), k=1, show_progress=False)
         rows, scores = self.store.dense_search_in_docs(pool, self.qvec(query), {ids[top[0][0]]}, k)
         return _hits(self.store, pool, rows, scores)
 
 
+class DocFirstHeaderRetriever(DocFirstRetriever):
+    """Doc-first with query segmentation: only the header ("Consider the NDA between X and Y")
+    picks the document, so generic question words cannot outvote the party names. Stage 2 is
+    unchanged (dense search with the full query inside the chosen document)."""
+    name = "docfirst_hdr"
+
+    def doc_query(self, query: str) -> str:
+        return split_query(query)[0]
+
+
+class LeafBM25Retriever(BM25Retriever):
+    """Section-tree baseline: flat BM25 over section leaves instead of 500-char chunks."""
+    name = "leaf_bm25"
+    store_kind = "leaf"
+
+
+class LeafDenseRetriever(DenseRetriever):
+    """Section-tree baseline: flat dense search over section leaves."""
+    name = "leaf_dense"
+    store_kind = "leaf"
+
+
+class LeafHybridRetriever(HybridRetriever):
+    """Section-tree baseline: RRF of BM25 and dense over section leaves."""
+    name = "leaf_hybrid"
+    store_kind = "leaf"
+
+
 BASELINES = {c.name: c for c in
-             [BM25Retriever, DenseRetriever, HybridRetriever, OracleRetriever, DocFirstRetriever]}
+             [BM25Retriever, DenseRetriever, HybridRetriever, OracleRetriever, DocFirstRetriever,
+              DocFirstHeaderRetriever, LeafBM25Retriever, LeafDenseRetriever, LeafHybridRetriever]}

@@ -29,6 +29,7 @@ class SubsetChunks:
     bm25: bm25s.BM25 | None = None
     emb: np.ndarray | None = None     # (n_chunks, dim) float32, L2-normalised
     faiss_index: faiss.Index | None = None
+    embed_texts: list[str] | None = None  # text given to the encoder, if not `texts` (e.g. breadcrumb + leaf)
 
 
 def tokenize(texts: list[str]):
@@ -89,6 +90,29 @@ class ChunkStore:
             {d: np.array(r) for d, r in rows.items()})
         self.docs[subset] = {d.doc_id: d for d in docs}
 
+    def merge(self, name: str, parts: list[str]) -> None:
+        """One pool `name` made of already-added subsets (e.g. all 714 documents together).
+
+        Rows are concatenated and embeddings reused from each part's cache, so the mixed pool
+        holds exactly the same chunks and vectors as the per-subset pools.
+        """
+        if name in self.subsets:
+            return
+        scs = [self.subsets[p] for p in parts]
+        embs = [self.embeddings(p) for p in parts]
+        offset, rows = 0, {}
+        for sc in scs:
+            rows.update({d: r + offset for d, r in sc.doc_rows.items()})
+            offset += len(sc.texts)
+        merged = SubsetChunks(
+            [d for sc in scs for d in sc.doc_ids], np.concatenate([sc.starts for sc in scs]),
+            np.concatenate([sc.ends for sc in scs]), [t for sc in scs for t in sc.texts], rows,
+            emb=np.concatenate(embs))
+        merged.faiss_index = faiss.IndexFlatIP(merged.emb.shape[1])
+        merged.faiss_index.add(merged.emb)
+        self.subsets[name] = merged
+        self.docs[name] = {k: v for p in parts for k, v in self.docs[p].items()}
+
     # ---- lexical ---------------------------------------------------------------------
     def bm25(self, subset: str) -> bm25s.BM25:
         sc = self.subsets[subset]
@@ -97,6 +121,12 @@ class ChunkStore:
             sc.bm25 = bm25s.BM25(k1=b["k1"], b=b["b"])
             sc.bm25.index(tokenize(sc.texts), show_progress=False)
         return sc.bm25
+
+    def bm25_scores(self, subset: str, query: str) -> np.ndarray:
+        """BM25 score of every chunk of the pool for one query (0 where no term matches)."""
+        words = bm25s.tokenize([query], lower=True, stopwords="en", return_ids=False,
+                               show_progress=False)[0]
+        return np.asarray(self.bm25(subset).get_scores(words))
 
     def bm25_search(self, subset: str, query: str, depth: int) -> tuple[np.ndarray, np.ndarray]:
         """(row indices, scores) of the top `depth` chunks by BM25."""
@@ -125,8 +155,8 @@ class ChunkStore:
             if path.exists():
                 sc.emb = np.load(path).astype(np.float32)
             else:
-                print(f"embedding {len(sc.texts)} chunks of {subset} ...", flush=True)
-                sc.emb = self.embedder.encode(sc.texts, show_progress=True)
+                print(f"embedding {len(sc.texts)} units of {subset} ...", flush=True)
+                sc.emb = self.embedder.encode(sc.embed_texts or sc.texts, show_progress=True)
                 path.parent.mkdir(parents=True, exist_ok=True)
                 np.save(path, sc.emb.astype(np.float16))
                 sc.emb = sc.emb.astype(np.float16).astype(np.float32)  # same values as a reload

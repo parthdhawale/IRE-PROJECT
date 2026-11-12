@@ -16,6 +16,8 @@ Word-based routers pick a vocabulary from the training documents, by one of two 
     concentrated in it (balanced purity) -- the band plus a group-specificity filter.
 and then classify with one of two models:
 - NBRouter (nb_band = band): each group is a Naive Bayes word distribution over the vocabulary.
+  Fixes for its failure modes (results/notes/nb_band_failures.md): nb_band_bin (binary counts,
+  alphabetic band) and cnb_band (Complement NB, alphabetic band).
 - VocabLRRouter (band_lr = band, vocab_lr = discriminative, conc_lr = concentrated): sublinear
   tf-idf vectors and a multinomial logistic regression; variants differ only in the vocabulary rule.
 """
@@ -30,7 +32,7 @@ import bm25s
 import numpy as np
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.naive_bayes import MultinomialNB
+from sklearn.naive_bayes import ComplementNB, MultinomialNB
 
 
 def tokenize_words(texts: list[str]) -> list[list[str]]:
@@ -72,11 +74,15 @@ def discriminative_vocab(token_lists: list[list[str]], labels: list[str], per_gr
     return sorted(vocab)
 
 
-def band_vocab(token_lists: list[list[str]], low: float, high: float) -> list[str]:
-    """Words whose document frequency is between low and high (fractions of the documents)."""
+def band_vocab(token_lists: list[list[str]], low: float, high: float, alpha_only: bool = False) -> list[str]:
+    """Words whose document frequency is between low and high (fractions of the documents).
+
+    alpha_only drops tokens that are not purely alphabetic (numbers such as "01" or "1997",
+    underscore runs from blank form fields), which pass the band but say nothing about the topic.
+    """
     n = len(token_lists)
     df = Counter(w for t in token_lists for w in set(t))
-    return sorted(w for w, d in df.items() if low * n <= d <= high * n)
+    return sorted(w for w, d in df.items() if low * n <= d <= high * n and (not alpha_only or w.isalpha()))
 
 
 def _identity(tokens: list[str]) -> list[str]:
@@ -124,8 +130,8 @@ def discriminative_selector(per_group: int, alpha: float) -> VocabSelector:
     return lambda tokens, labels: discriminative_vocab(tokens, labels, per_group, alpha)
 
 
-def band_selector(low: float, high: float) -> VocabSelector:
-    return lambda tokens, labels: band_vocab(tokens, low, high)  # label-free
+def band_selector(low: float, high: float, alpha_only: bool = False) -> VocabSelector:
+    return lambda tokens, labels: band_vocab(tokens, low, high, alpha_only)  # label-free
 
 
 def all_words_selector() -> VocabSelector:
@@ -137,15 +143,22 @@ class NBRouter:
     the word counts of its training documents with additive (Laplace) smoothing alpha. A text
     is scored by log P(group) + sum_w count(w) * log P(w | group) -- "which group's word
     distribution best explains these words". Only words in the selected vocabulary count.
-    Extendible: adding a document only adds its counts to its group's totals."""
+    Extendible: adding a document only adds its counts to its group's totals.
 
-    def __init__(self, select: VocabSelector, alpha: float):
-        self.select, self.alpha = select, alpha
+    binary=True counts each word once per text (presence, not frequency), so one word repeated
+    hundreds of times -- a party name like "bank" in an agency agreement -- cannot outvote the
+    rest of the document. complement=True uses Complement Naive Bayes (Rennie et al. 2003):
+    each group is scored against the word distribution of all OTHER groups, which is more
+    stable when groups have very different sizes."""
+
+    def __init__(self, select: VocabSelector, alpha: float, binary: bool = False, complement: bool = False):
+        self.select, self.alpha, self.binary, self.complement = select, alpha, binary, complement
 
     def fit(self, token_lists: list[list[str]], labels: list[str]) -> "NBRouter":
         self.vocab = self.select(token_lists, labels)
-        self.vec = CountVectorizer(analyzer=_identity, vocabulary=self.vocab)
-        self.nb = MultinomialNB(alpha=self.alpha).fit(self.vec.transform(token_lists), labels)
+        self.vec = CountVectorizer(analyzer=_identity, vocabulary=self.vocab, binary=self.binary)
+        model = ComplementNB if self.complement else MultinomialNB
+        self.nb = model(alpha=self.alpha).fit(self.vec.transform(token_lists), labels)
         self.groups = list(self.nb.classes_)
         return self
 
