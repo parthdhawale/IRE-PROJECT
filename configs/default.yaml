@@ -68,8 +68,19 @@ routing:
   vocab_alpha: 1.0        # Laplace smoothing of the document-frequency rates p_in, p_out
   band_low: 0.01          # the band keeps words in >= 1% ... (fixed before seeing any results)
   band_high: 0.5          # ... and <= 50% of the training documents
-  band_sweep_low: [0.005, 0.01, 0.02, 0.05]    # sensitivity table only -- never used to pick the band
-  band_sweep_high: [0.25, 0.5, 0.75, 1.0]
+  # sensitivity tables only -- never used to pick the band. low=0 keeps every word seen at least
+  # once, high=1 keeps words in every document; pairs with low >= high are skipped.
+  band_sweep_low: [0.0, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1]
+  band_sweep_high: [0.1, 0.25, 0.5, 0.75, 1.0]
+  # conc_lr: band words that are also concentrated in one group (routers.concentrated_vocab).
+  # Defaults fixed before any conc_lr result (reasoning in results/notes/conc_lr.md):
+  conc_min_in: 2          # m: in >= 2 training documents of its best group (drops one-off names/typos)
+  conc_purity: 0.33       # p: balanced purity >= 1/3, i.e. concentrated in at most ~3 groups (top-3 gate)
+  conc_band_low: 0.0      # the frequency floor is left to m: a 1% floor of a large pool removes words
+  conc_band_high: 0.5     # that are frequent inside one small group but rare overall
+  conc_sweep_min_in: [1, 2, 3, 5, 10]                  # sensitivity tables only
+  conc_sweep_purity: [0.0, 0.2, 0.33, 0.5, 0.7, 0.9]
+  conc_sweep_band_low: [0.0, 0.01]
   nb_alpha: 1.0           # Laplace smoothing of Naive Bayes word distributions P(w | group)
   lr_c: 1.0               # inverse L2 regularisation strength of the logistic regression
   lr_max_iter: 2000
@@ -82,3 +93,11 @@ routing:
   gates:
     coarse: {b: 1, accuracy: 0.95}
     fine: {b: 3, accuracy: 0.95}
+
+# External, non-legal two-level hierarchy for the document-grouping test (scripts/run_wos_grouping.py).
+# Same routers, routing parameters, folds and gates as LegalBench-RAG; only the documents differ.
+wos:
+  root: data/external/wos     # unzipped Mendeley release (WOS.zip)
+  version: WOS46985           # 46,985 abstracts, 7 domains -> 134 areas
+  sweep_folds: 1              # folds scored by the sweeps: fold 0 = ~9,400 held-out abstracts (SE of an
+                              # accuracy ~0.005); all 5 would take many hours of logistic regressions

@@ -12,10 +12,12 @@ Word-based routers pick a vocabulary from the training documents, by one of two 
     topic, too-rare ones are document-specific; the middle band carries the topic. Label-free.
   * discriminative_vocab: per group, the words with the highest p_in * log(p_in / p_out) on
     Laplace-smoothed document-frequency rates -- a supervised, information-gain style score.
+  * concentrated_vocab: band words that also appear in several documents of one group and are
+    concentrated in it (balanced purity) -- the band plus a group-specificity filter.
 and then classify with one of two models:
 - NBRouter (nb_band = band): each group is a Naive Bayes word distribution over the vocabulary.
-- VocabLRRouter (band_lr = band, vocab_lr = discriminative): sublinear tf-idf vectors and a
-  multinomial logistic regression; variants differ only in the vocabulary rule.
+- VocabLRRouter (band_lr = band, vocab_lr = discriminative, conc_lr = concentrated): sublinear
+  tf-idf vectors and a multinomial logistic regression; variants differ only in the vocabulary rule.
 """
 
 from __future__ import annotations
@@ -79,6 +81,40 @@ def band_vocab(token_lists: list[list[str]], low: float, high: float) -> list[st
 
 def _identity(tokens: list[str]) -> list[str]:
     return tokens
+
+
+def group_doc_freq(token_lists: list[list[str]], labels: list[str]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """(words, counts, sizes): counts[g, j] = training documents of group g containing word j,
+    sizes[g] = documents in group g. Groups in sorted order. Computed once, filtered many times."""
+    groups = sorted(set(labels))
+    vec = CountVectorizer(analyzer=_identity, binary=True)
+    x = vec.fit_transform(token_lists)                                   # (docs, words) 0/1
+    lab = np.array(labels)
+    member = np.stack([lab == g for g in groups]).astype(np.float64)    # (groups, docs)
+    counts = np.asarray((x.T @ member.T).T)                              # (groups, words)
+    return vec.get_feature_names_out(), counts, member.sum(axis=1)
+
+
+def concentrated_vocab(stats: tuple[np.ndarray, np.ndarray, np.ndarray], low: float, high: float,
+                       min_in: int, purity: float) -> list[str]:
+    """Band words that are also concentrated in one group. A word is kept if
+      1. its document frequency is in [low, high] of all training documents (the band),
+      2. it appears in >= min_in training documents of its best group (coverage: one-off
+         names and typos seen in a single document are dropped), and
+      3. its balanced purity >= purity, where balanced purity = the best group's share of the
+         word's per-group document rates, rate_g = df_g / size_g. Rates rather than raw counts,
+         so a large group does not look "pure" just by being large (chance level = 1 / groups).
+    """
+    words, counts, sizes = stats
+    n, df = sizes.sum(), counts.sum(axis=0)
+    rates = counts / sizes[:, None]
+    pure = rates.max(axis=0) / rates.sum(axis=0)
+    keep = (df >= low * n) & (df <= high * n) & (counts.max(axis=0) >= min_in) & (pure >= purity)
+    return sorted(words[keep].tolist())
+
+
+def concentrated_selector(low: float, high: float, min_in: int, purity: float) -> "VocabSelector":
+    return lambda tokens, labels: concentrated_vocab(group_doc_freq(tokens, labels), low, high, min_in, purity)
 
 
 VocabSelector = Callable[[list[list[str]], list[str]], list[str]]

@@ -14,7 +14,10 @@ from trr.routing.routers import (
     all_words_selector,
     band_selector,
     band_vocab,
+    concentrated_selector,
+    concentrated_vocab,
     discriminative_selector,
+    group_doc_freq,
     discriminative_vocab,
     gold_rank,
 )
@@ -39,6 +42,21 @@ def test_band_vocab_drops_universal_and_rare_words() -> None:
     assert band_vocab(tokens, low=0.1, high=0.75) == ["confidential", "merger", "recipient", "shareholders"]
     assert "agreement" in band_vocab(tokens, low=0.1, high=1.0)   # high=1.0 keeps universal words
     assert "nda0" in band_vocab(tokens, low=0.0, high=0.75)       # low=0 keeps singletons
+
+
+def test_concentrated_vocab_needs_coverage_and_purity() -> None:
+    # 4 "a" docs, 8 "b" docs. "shared" is in every doc; "pair" is in 2 a-docs and 2 b-docs
+    # (balanced purity (2/4) / (2/4 + 2/8) = 0.67); "core" in 3 a-docs only; "oneoff" in 1 a-doc only.
+    a = [["shared", "core", "pair"], ["shared", "core", "pair"], ["shared", "core"], ["shared", "oneoff"]]
+    b = [["shared", "pair"], ["shared", "pair"]] + [["shared", "bword"] for _ in range(6)]
+    stats = group_doc_freq(a + b, ["a"] * 4 + ["b"] * 8)
+    assert concentrated_vocab(stats, 0.0, 1.0, 1, 0.0) == ["bword", "core", "oneoff", "pair", "shared"]
+    assert concentrated_vocab(stats, 0.0, 0.9, 1, 0.0) == ["bword", "core", "oneoff", "pair"]  # band drops "shared"
+    assert concentrated_vocab(stats, 0.0, 1.0, 2, 0.0) == ["bword", "core", "pair", "shared"]  # min_in drops "oneoff"
+    assert concentrated_vocab(stats, 0.0, 1.0, 2, 0.6) == ["bword", "core", "pair"]   # "shared" purity 0.5
+    assert concentrated_vocab(stats, 0.0, 1.0, 2, 0.9) == ["bword", "core"]           # "pair" purity 0.67
+    lr = VocabLRRouter(concentrated_selector(0.0, 1.0, 2, 0.6), c=1.0, max_iter=1000, seed=0).fit(a + b, ["a"] * 4 + ["b"] * 8)
+    assert lr.vocab == ["bword", "core", "pair"]
 
 
 def test_both_vocab_routers_route_short_query() -> None:

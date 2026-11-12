@@ -61,6 +61,45 @@ def load_setup(cfg: dict) -> SimpleNamespace:
         n_dup=sum(n > 1 for n in np.bincount(list(comps.values()))))
 
 
+def load_wos_setup(cfg: dict, embed: bool = True) -> SimpleNamespace:
+    """Web of Science counterpart of load_setup: documents, domain / area labels, 5 document folds
+    stratified by area (no duplicate abstracts, so each document is its own fold component),
+    tokens and -- if embed -- cached excerpt embeddings."""
+    from trr.config import REPO_ROOT
+    from trr.data.wos import load_wos
+    from trr.routing.routers import tokenize_words
+
+    rc, w, cache = cfg["routing"], cfg["wos"], Path(cfg["paths"]["cache"])
+    docs, domain, area = load_wos(REPO_ROOT / w["root"], w["version"], cache)
+    ids = [d.doc_id for d in docs]
+    folds = leak_safe_folds(ids, dict(zip(ids, area)), {d: i for i, d in enumerate(ids)}, rc["n_folds"], cfg["seed"])
+    vecs = None
+    if embed:
+        from trr.retrievers.chunk_store import Embedder
+        emb = Embedder(cfg)
+        key = {"model": emb.model_name, "chars": rc["excerpt_chars"], "n": len(docs), "set": w["version"]}
+        vecs = cached_embeddings("wos", [d.text[:rc["excerpt_chars"]] for d in docs],
+                                 lambda t: emb.encode(t, show_progress=True), key, cache)
+    return SimpleNamespace(docs=docs, doc_ids=ids, domain=domain, area=area, doc_vecs=vecs,
+                           d_fold=np.array([folds[d] for d in ids]),
+                           doc_tokens=tokenize_words([d.text for d in docs]))
+
+
+def grouping_levels(dataset: str, cfg: dict, embed: bool = False):
+    """(setup, {"coarse": [Level], "fine": [Level, ...]}) for "legalbench" or "wos". A level may be
+    several disjoint sub-levels whose scores are pooled (WOS fine = one classifier per domain)."""
+    from trr.routing.evaluate import Level, build_levels
+
+    if dataset == "wos":
+        S = load_wos_setup(cfg, embed=embed)
+        fine = [Level(f"fine:{d}", np.where(S.domain == d, S.area, ""), np.where(S.domain == d, S.area, ""))
+                for d in sorted(set(S.domain))]
+        return S, {"coarse": [Level("coarse", S.domain, S.domain)], "fine": fine}
+    S = load_setup(cfg)
+    lv = {x.name: x for x in build_levels(S.doc_subset, S.doc_group, np.arange(len(S.docs)))}
+    return S, {"coarse": [lv["coarse"]], "fine": [lv["fine"]]}
+
+
 def unit_bootstrap_ci(hit: np.ndarray, unit: np.ndarray, resamples: int, seed: int) -> tuple[float, float]:
     """95% CI of mean(hit), resampling units (documents): rows sharing a unit move together."""
     units, inv = np.unique(unit, return_inverse=True)

@@ -18,6 +18,7 @@ dependencies = [
     "faiss-cpu>=1.8",
     "sentence-transformers>=3.0",
     "datasets>=3.0",
+    "openpyxl>=3.1",   # Web of Science Meta-data/Data.xlsx (area names)
 ]
 
 [project.optional-dependencies]
