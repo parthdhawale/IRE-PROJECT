@@ -22,6 +22,10 @@ eval:
   ks: [1, 2, 4, 8, 16, 32, 64]
   bootstrap_resamples: 1000
   bootstrap_seed: 0
+  # Dev / test split of the queries (trr.eval.splits): a query is dev when its gold document is in
+  # one of these routing folds (leak-safe document folds, routing.n_folds), test otherwise. Dev
+  # queries choose settings; test queries are scored once.
+  dev_folds: [0]
 
 chunking:
   chunk_chars: 500          # LegalBench-RAG baseline: recursive splitter, 500 chars, no overlap
@@ -107,6 +111,31 @@ group_first:
   # docfirst_local_rrf = RRF of the header-only and full-query document rankings
   inners: [dense, hybrid, docfirst, docfirst_local, docfirst_hdr, docfirst_local_hdr, docfirst_local_rrf]
   table_ks: [1, 8, 64]
+
+band_clusters:
+  # E11 band pipeline: mid-band clusters -> mid-band query routing -> rare-in-cluster document
+  # choice -> passage inside that document. Defaults pre-registered on 2026-11-12, before any result
+  # (results/notes/experiment_log.md, E11); the grids are searched on DEV queries only.
+  # Mid band ("what kind of document"): clusters and routing. The floor is an absolute number of
+  # documents, not a share: a share grows with the pool and starts dropping topic words (E6, E9).
+  min_df: 5               # a word in >= 5 documents ...
+  max_frac: 0.5           # ... and in <= 50% of the documents
+  # Rare band ("which document"): query words in fewer than rare_below documents OF THE CHOSEN
+  # CLUSTER (counted inside the cluster, numbers kept: amounts, dates, ids identify documents).
+  rare_below: 5           # = min_df: the two bands meet at one cut-off
+  k: 8                    # clusters (spherical k-means on L2-normalised mid-band tf-idf)
+  b: 2                    # clusters searched per query
+  kmeans_n_init: 10       # k-means restarts; the best (lowest inertia) is kept
+  kmeans_max_iter: 300
+  passage: bm25           # passage step inside the chosen document: bm25 (fully lexical) | dense
+  # dev grid. Selection: document recall@1 averaged over all dev QUERIES (not macro over subsets:
+  # PrivacyQA has a single dev document, which would weigh 1/4 in a macro); ties -> smaller k, then
+  # smaller b. Test results are reported macro over subsets, as in the earlier tables.
+  sweep_min_df: [2, 5, 20]
+  sweep_max_frac: [0.25, 0.5]
+  sweep_rare_below: [2, 5, 10]
+  sweep_k: [4, 8, 16, 32]
+  sweep_b: [1, 2, 3]
 
 # External, non-legal two-level hierarchy for the document-grouping test (scripts/run_wos_grouping.py).
 # Same routers, routing parameters, folds and gates as LegalBench-RAG; only the documents differ.

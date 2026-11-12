@@ -57,6 +57,19 @@ def doc_full_vectors(cfg: dict, docs) -> np.ndarray:
     return np.stack([vec[d.doc_id] for d in docs]).astype(np.float32)
 
 
+def legalbench_doc_folds(cfg: dict, docs) -> tuple[dict[str, str], dict[str, int], dict[str, int]]:
+    """(groups, near-duplicate components, leak-safe folds), each keyed by doc_id.
+
+    The one place the LegalBench-RAG document folds are drawn: the routing experiments and the
+    dev/test query split (trr.eval.splits) use the same folds, so they can never disagree."""
+    rc, cache = cfg["routing"], Path(cfg["paths"]["cache"])
+    cache.mkdir(parents=True, exist_ok=True)
+    doc_ids = [d.doc_id for d in docs]
+    groups = assign_groups(docs, rc["min_group_docs"])
+    comps = near_duplicate_components(doc_ids, doc_signatures(docs, cfg, cache), rc["dup_tau"])
+    return groups, comps, leak_safe_folds(doc_ids, groups, comps, rc["n_folds"], cfg["seed"])
+
+
 def load_setup(cfg: dict, full_vectors: bool = False) -> SimpleNamespace:
     """Everything both routing experiments share: the mixed pool, its groups, leak-safe folds,
     document embeddings and tokens. Identical across scripts, so their numbers are comparable.
@@ -69,12 +82,9 @@ def load_setup(cfg: dict, full_vectors: bool = False) -> SimpleNamespace:
     from trr.routing.routers import tokenize_words
 
     rc, cache = cfg["routing"], Path(cfg["paths"]["cache"])
-    cache.mkdir(parents=True, exist_ok=True)
     docs = [d for s in cfg["data"]["subsets"] for d in load_corpus(cfg["paths"]["raw"], s)]
     doc_ids = [d.doc_id for d in docs]
-    groups = assign_groups(docs, rc["min_group_docs"])
-    comps = near_duplicate_components(doc_ids, doc_signatures(docs, cfg, cache), rc["dup_tau"])
-    folds = leak_safe_folds(doc_ids, groups, comps, rc["n_folds"], cfg["seed"])
+    groups, comps, folds = legalbench_doc_folds(cfg, docs)
     emb = Embedder(cfg)
     key = {"model": emb.model_name, "chars": rc["excerpt_chars"], "n": len(docs)}
     doc_vecs = cached_embeddings("docs", [d.text[:rc["excerpt_chars"]] for d in docs], emb.encode, key, cache)

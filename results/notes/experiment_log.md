@@ -189,12 +189,79 @@ without retraining.
 
 ---
 
+## E10. Track B (Parth, merged 2026-11-12): group-first retrieval, header-only document choice
+
+Summary of the merged branch `trackB-header-docsel` (merge commit `b7df2ad`); details in his notes.
+
+- **Built:** section-leaf retrieval units (`leaf_store.py`); one mixed pool of all 714 documents;
+  group-first retriever (route to top-B groups, search only there; `none` = flat, `oracle` = gold group);
+  collection-local document BM25 indexes; header-only document choice (`query_split.py`, split at the first
+  ";") and RRF of header-only and full-query document rankings; document-level paired bootstrap
+  (`paired_cluster_bootstrap_macro_ci`).
+- **Results (full benchmark, DRM@8 macro, document-level CIs):** doc-first vs hybrid -0.283 (real);
+  leaves vs chunks +0.027 (leaves slightly worse, real); routing + local index vs flat doc-first on the
+  mixed pool -0.017 (real, small); header-only vs doc-first -0.085 (real; ContractNLI alone -0.054, real);
+  final method (centroid_full coarse B=2 + local index + header/full RRF) vs flat doc-first .161 -> .108
+  (CI [-.122, -.004], real); final vs routing alone -0.036 (not real).
+- **Findings:** even oracle fine routing barely helps (.181 -> .163): wrong-document errors are inside a
+  group. Fine query routing depends on the benchmark header (question only: top-3 .906 -> ~.15-.19).
+  Whole-document centroid routes MAUD queries far better (.152 -> .748) but places new documents worse.
+- **Caveats:** settings chosen on mini, which is part of full (PrivacyQA mini = full), so full is not an
+  independent confirmation; most macro gain is PrivacyQA (7 documents); the header is a property of the
+  benchmark's query template.
+- **Files:** `results/notes/phase2_trackB.md`, `phase2_task3_routing.md`, `phase2_task4_header_docsel.md`,
+  `phase3_full_run.md`; `results/tables/paired_ci_full.md`, `group_first_full.md`, `baselines_full.md`.
+
+## E11. Band pipeline: band clusters -> band routing -> rare-in-cluster document (PRE-REGISTERED)
+
+Written 2026-11-12 before any result. Defaults in `configs/default.yaml` (`band_clusters`), not changed
+by the dev search.
+
+- **Question:** can a purely word-frequency pipeline group documents, route a query to its group and pick
+  the exact document, extendibly (no retraining for new documents) -- and how does it compare with the
+  embedding pipeline and a fused one (later entries)?
+- **Idea:** two bands of document frequency with two jobs. The **mid band** (df >= 5 documents and
+  <= 50% of documents) says *what kind* of document: it builds the clusters and routes the query. The
+  **rare band** (query words in < 5 documents *of the chosen cluster*) says *which* document: party names,
+  products, amounts. "Confidential" is in every NDA, so it cannot pick an NDA; a name in one NDA can.
+  The floor is an absolute count because a share grows with the pool and drops topic words (E6, E9).
+- **Method:**
+  1. Index: sublinear tf-idf over the mid band, L2-normalised; spherical k-means (k = 8 default,
+     10 restarts); each cluster named by its top centroid words. A new document joins its nearest
+     centroid and updates the mean (O(1), no re-clustering).
+  2. Route: query mid-band vector, cosine to the centroids, top B = 2 clusters.
+  3. Document: BM25 over the query's rare-in-cluster words, idf inside the searched clusters (Parth's
+     local index); fallback to full-query BM25 when the query has no rare word.
+  4. Passage: BM25 inside the chosen document (fully lexical, no embedding model); dense passages later
+     (needs chunk embeddings, Kaggle). Stage 4 is the same for all compared pipelines.
+- **Data / split:** LegalBench-RAG, one mixed pool of 714 documents, all 6,889 queries. Dev / test split
+  by gold document = leak-safe routing fold 0 (`eval.dev_folds`, `trr/eval/splits.py`): dev 1,403 queries
+  / 143 documents, test 5,486 / 571 (PrivacyQA has 1 dev document). Clusters are built from all documents
+  (an index, never queries).
+- **Dev search:** min_df {2, 5, 20} x max_frac {25%, 50%} x rare_below {2, 5, 10} x k {4, 8, 16, 32} x
+  B {1, 2, 3}; selection = document recall@1 over all dev queries (query-weighted, because of PrivacyQA's
+  single dev document); ties -> smaller k, then smaller B. Test scored once with the selected setting and
+  with the defaults.
+- **Metrics:** cluster NMI / ARI vs subsets and vs CUAD types; routing (gold document in the top-B
+  clusters); document recall@1, DRM@1/8, char precision / recall@k; latency per query, index build time,
+  time to add one document. Full queries and question-only (header removed). Document-level bootstrap.
+- **Baselines:** flat BM25, flat doc-first, Parth's final method, oracle routing (gold document's cluster).
+- **Expectation:** clusters cut the searched pool a lot and DRM only a little (errors are inside a topic,
+  E10); the rare band is where DRM can fall, and it should hold without the header where the header trick
+  cannot. Some NDA misses are unfixable lexically (party name absent from the document text). k-means will
+  be lopsided (462 CUAD vs 7 PrivacyQA documents).
+- **Status:** pre-registered; split drawn (`results/tables/query_split.md`, `.csv`); pipeline not built.
+
+---
+
 ## Open items
 
+- E11 band pipeline: build, unit-test, dev search and test run (heavy runs on Kaggle).
+- After E11: embedding-cluster pipeline; fused pipeline (stage-wise RRF, confidence-weighted); comparison
+  study (bi-encoder, cross-encoder; time, throughput, accuracy, DRM); hierarchical chunking (tree descent).
+- Datasets for scale: LegalBench + EDGAR Exhibit-10 distractors (deduped against the 714 documents with
+  MinHash); CLERC subsampled pools (10k / 30k / 100k) if its licence and court metadata check out.
 - Run the conc_lr sweep on WOS (E8).
 - Learning curve: subsample WOS (and CUAD) training data per class to test data-size vs domain directly.
-- Larger legal training set if needed: SEC Exhibit-10 dump (Hugging Face), labelled by our own exhibit-title
-  rule; dedupe against CUAD with MinHash. Stanford MCC rejected (only 8 coarse labels, no titles).
-- Earlier recommendations still open: fix nb_band (binary counts / ComplementNB), whole-document
-  centroid, label audit, within-group retrieval + DRM, scaling with distractors.
-- Not committed yet: everything from E5 on (code, config, tables, notes).
+- Fix the routers.py module docstring: the LR routers need a refit to absorb new documents (placement
+  needs none).
