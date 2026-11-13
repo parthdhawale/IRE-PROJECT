@@ -15,7 +15,16 @@ This writes:
 
 CLERC itself is not uploaded: the notebook downloads it from Hugging Face (`jhu-clsp/CLERC`).
 
-## 2. Upload (on kaggle.com)
+## 2. Upload
+
+**With the Kaggle CLI** (token in `~/.kaggle/kaggle.json`; `pip install kaggle` in the venv):
+
+    kaggle/push.sh datasets    # private datasets trr-code (new version each time) and trr-data (once)
+    kaggle/push.sh kernel      # pushes the notebook; Kaggle runs it (Save & Run All)
+    .venv/bin/kaggle kernels status <user>/trr-e11-clerc
+    .venv/bin/kaggle kernels output <user>/trr-e11-clerc -p dist/kaggle/output
+
+**Or by hand (on kaggle.com):**
 
 1. **Datasets -> New Dataset**: upload `trr_data.zip`, name it `trr-data`, keep it **private**.
 2. **Datasets -> New Dataset**: upload `trr_code.zip`, name it `trr-code`, **private**. For later code changes,
