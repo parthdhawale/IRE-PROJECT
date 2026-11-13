@@ -1,0 +1,11 @@
+..................................ssssssss.............................. [ 67%]
+...................................                                      [100%]
+=============================== warnings summary ===============================
+tests/test_routing.py::test_concentrated_vocab_needs_coverage_and_purity
+tests/test_routing.py::test_both_vocab_routers_route_short_query
+tests/test_routing.py::test_both_vocab_routers_route_short_query
+  /usr/local/lib/python3.13/dist-packages/sklearn/linear_model/_logistic.py:451: DeprecationWarning: scipy.optimize: The `disp` and `iprint` options of the L-BFGS-B solver are deprecated and will be removed in SciPy 1.18.0.
+    opt_res = optimize.minimize(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+99 passed, 8 skipped, 3 warnings in 14.98s

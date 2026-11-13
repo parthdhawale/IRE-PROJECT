@@ -1,0 +1,17 @@
+a,b,metric,clerc,macro,lo,hi,real
+emb_band_k8_b1_mean,emb_band_k8_b2_maxp,rdoc_recall@1,0.0,0.0,0.0,0.0,no
+emb_band_k8_b1_mean,emb_band_k8_b2_maxp,rdoc_mrr,0.0,0.0,0.0,0.0,no
+emb_band_k8_b1_mean,emb_band_k8_b2_maxp,rdoc_ndcg@10,0.0,0.0,0.0,0.0,no
+emb_band_k8_b1_mean,emb_band_k8_b2_maxp,drm@8,0.0,0.0,0.0,0.0,no
+emb_band_k8_b1_mean,emb_none_k8_mean,rdoc_recall@1,0.0,0.0,0.0,0.0,no
+emb_band_k8_b1_mean,emb_none_k8_mean,rdoc_mrr,0.0,0.0,0.0,0.0,no
+emb_band_k8_b1_mean,emb_none_k8_mean,rdoc_ndcg@10,0.0,0.0,0.0,0.0,no
+emb_band_k8_b1_mean,emb_none_k8_mean,drm@8,0.0,0.0,0.0,0.0,no
+emb_band_k8_b1_mean,emb_oracle_k8_mean,rdoc_recall@1,-0.4,-0.4,-0.8,0.0,no
+emb_band_k8_b1_mean,emb_oracle_k8_mean,rdoc_mrr,-0.4,-0.4,-0.8,0.0,no
+emb_band_k8_b1_mean,emb_oracle_k8_mean,rdoc_ndcg@10,-0.4,-0.4,-0.8,0.0,no
+emb_band_k8_b1_mean,emb_oracle_k8_mean,drm@8,0.4,0.4,0.0,0.8,no
+emb_band_k8_b1_mean,mixed_dense,rdoc_recall@1,-0.2,-0.2,-0.6,0.0,no
+emb_band_k8_b1_mean,mixed_dense,rdoc_mrr,-0.21818181818181817,-0.21818181818181817,-0.6181818181818182,0.0,no
+emb_band_k8_b1_mean,mixed_dense,rdoc_ndcg@10,-0.2,-0.2,-0.6,0.0,no
+emb_band_k8_b1_mean,mixed_dense,drm@8,0.025,0.025,-0.2,0.225,no

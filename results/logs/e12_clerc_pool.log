@@ -1,0 +1,30 @@
+downloading teva_train_dir/train_data.jsonl.gz ...
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+327414 training queries [159s]
+downloading collection/mapping.pid2did.tsv ...
+pool: 10007 cases from 807 queries [174s]
+downloading collection/collection.doc.tsv.gz ...
+10007 case texts kept [411s]
+{
+  "training_queries": 327414,
+  "passages_needed": 2238201,
+  "passages_mapped": 2238201,
+  "queries_used": 807,
+  "pool_cases_planned": 10007,
+  "neg_cases_per_query_mean": 12.066914498141264,
+  "pool_cases_found": 10007,
+  "queries_with_gold_found": 807,
+  "source_check": {
+    "source_cases_removed": 230,
+    "queries_dropped_source_is_gold": 0
+  },
+  "pool_cases": 9777,
+  "queries": 807,
+  "dev_queries": 160,
+  "test_queries": 647,
+  "gold_cases": 800,
+  "chars_mean": 43762.544850158534,
+  "seconds": 481.160799741745,
+  "git": "2ea23f0"
+}
+wrote /kaggle/working/trr/data/external/clerc/pool_10000

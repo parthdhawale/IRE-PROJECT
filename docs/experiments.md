@@ -193,9 +193,16 @@ document (lower is better). "Real" = the document-level bootstrap CI excludes 0 
 - **Expectation (written before running):** queries do not name the cited case, so the rare band is weaker
   than on LegalBench; CLERC's negatives are topically close, so routing will rarely exclude them; any gain
   comes from the rare band inside the cluster.
-- **Status:** built and unit-tested (107 tests, including an end-to-end run on a synthetic pool); pool
-  builder `scripts/build_clerc_pool.py`; run script `scripts/run_band_pipeline.py --dataset clerc`; Kaggle
-  notebook `kaggle/e11_clerc.ipynb`. Not run.
+- **Result (2026-11-13; 9,777 cases, 647 test queries; `results/tables/band_test_clerc.md`):** the dev search
+  chose k 16, B 3, rare_below 10. Test document recall@1 / @10: band pipeline 0.077 / 0.291, rare band
+  without clusters 0.087 / 0.308, oracle cluster 0.155 / 0.447, **full-query BM25 doc-first 0.116 / 0.501**,
+  flat BM25 over chunks 0.111 / 0.488. The band pipeline is worse than doc-first (recall@1 -0.039, CI
+  [-0.064, -0.014]) and no different from no clusters. Routing works (gold cluster searched for 90% of
+  queries, a quarter of the pool searched) and the discovered clusters are readable areas of law
+  (immigration, bankruptcy, ERISA, habeas, tax, ...), but the rare band picks the case worse than the full
+  query: with the citation removed, the query's rare words are not the cited case's identifying facts.
+  Adding one case: 10 ms vs 110 s to re-cluster. Even the oracle cluster gives only 0.155: choosing among
+  topically close cases is the hard step.
 
 ## E12. Embedding pipeline on CLERC (pre-registered)
 
@@ -209,7 +216,17 @@ document (lower is better). "Real" = the document-level bootstrap CI excludes 0 
 - **Baselines:** flat dense retrieval over all chunks, flat dense document choice (no clusters), oracle routing.
 - **Expectation:** routing at least as good as E11; picking the exact case is harder for embeddings than
   for rare words; maxp beats mean; E11 and E12 fail on different queries (the case for fusion).
-- **Status:** built and unit-tested; Kaggle notebook `kaggle/e12_clerc.ipynb` (GPU). Not run.
+- **Result (2026-11-13; same pool and queries as E11, verified; `results/tables/embed_test_clerc.md`):** the
+  dev search chose k 32, B 3, mean. Test document recall@1 / @10: embedding pipeline 0.096 / 0.369, dense
+  case choice without clusters 0.096 / 0.399, oracle cluster 0.161 / 0.550, flat dense over chunks
+  0.066 / 0.402. Routing searches ~12% of the cases with no loss at recall@1 (0.000, CI [-0.009, 0.008])
+  and is 5x faster than no clusters (0.6 vs 3.0 ms, plus 11 ms query encoding); one vector per case beats
+  chunk-level dense retrieval at recall@1 (+0.029, real). Against the expectation, mean beat maxp and
+  embedding clusters routed worse than band clusters at equal k. Still below BM25 doc-first (0.116).
+- **E11 vs E12 query by query** (`results/tables/e11_e12_compare_clerc.md`): BM25 doc-first and dense case
+  choice get mostly different queries right (28 shared, 47 and 34 alone); either one is right on 16.8%
+  at recall@1 and 62.8% at recall@10. An exploratory plain RRF of the two reaches only 0.121 at recall@1
+  (not a real gain) and 0.530 at recall@10: fusion needs a per-query confidence signal, not equal votes.
 
 ---
 

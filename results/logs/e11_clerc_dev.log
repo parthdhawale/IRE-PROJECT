@@ -1,0 +1,32 @@
+dev: 160 queries, pool 9777 documents
+min_df=2 max_frac=0.25 k=8: built in 103.6s, best r@1 0.106
+min_df=2 max_frac=0.25 k=16: built in 146.7s, best r@1 0.131
+min_df=2 max_frac=0.25 k=32: built in 203.2s, best r@1 0.150
+min_df=2 max_frac=0.25 k=64: built in 310.6s, best r@1 0.194
+min_df=2 max_frac=0.25 k=128: built in 458.2s, best r@1 0.231
+min_df=2 max_frac=0.5 k=8: built in 123.4s, best r@1 0.106
+min_df=2 max_frac=0.5 k=16: built in 146.5s, best r@1 0.106
+min_df=2 max_frac=0.5 k=32: built in 238.2s, best r@1 0.156
+min_df=2 max_frac=0.5 k=64: built in 441.0s, best r@1 0.156
+min_df=2 max_frac=0.5 k=128: built in 709.1s, best r@1 0.212
+min_df=5 max_frac=0.25 k=8: built in 83.9s, best r@1 0.119
+min_df=5 max_frac=0.25 k=16: built in 111.4s, best r@1 0.113
+min_df=5 max_frac=0.25 k=32: built in 175.3s, best r@1 0.156
+min_df=5 max_frac=0.25 k=64: built in 305.7s, best r@1 0.169
+min_df=5 max_frac=0.25 k=128: built in 415.6s, best r@1 0.219
+min_df=5 max_frac=0.5 k=8: built in 98.5s, best r@1 0.113
+min_df=5 max_frac=0.5 k=16: built in 168.2s, best r@1 0.125
+min_df=5 max_frac=0.5 k=32: built in 244.3s, best r@1 0.138
+min_df=5 max_frac=0.5 k=64: built in 393.6s, best r@1 0.181
+min_df=5 max_frac=0.5 k=128: built in 568.2s, best r@1 0.206
+min_df=20 max_frac=0.25 k=8: built in 57.1s, best r@1 0.094
+min_df=20 max_frac=0.25 k=16: built in 81.3s, best r@1 0.113
+min_df=20 max_frac=0.25 k=32: built in 151.3s, best r@1 0.175
+min_df=20 max_frac=0.25 k=64: built in 233.2s, best r@1 0.163
+min_df=20 max_frac=0.25 k=128: built in 414.9s, best r@1 0.219
+min_df=20 max_frac=0.5 k=8: built in 71.2s, best r@1 0.113
+min_df=20 max_frac=0.5 k=16: built in 118.6s, best r@1 0.113
+min_df=20 max_frac=0.5 k=32: built in 175.5s, best r@1 0.169
+min_df=20 max_frac=0.5 k=64: built in 318.3s, best r@1 0.169
+min_df=20 max_frac=0.5 k=128: built in 436.8s, best r@1 0.219
+selected {'min_df': 5, 'max_frac': 0.25, 'k': 16, 'rare_below': 10, 'b': 3} (dev r@1 0.106, 2 tied); wrote band_dev_clerc.md

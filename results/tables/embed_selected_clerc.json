@@ -1,0 +1,18 @@
+{
+  "selected": {
+    "k": 32,
+    "b": 3,
+    "doc_score": "mean"
+  },
+  "default": {
+    "k": 8,
+    "b": 2,
+    "doc_score": "maxp"
+  },
+  "dev_doc_recall@1": 0.09375,
+  "settings_tied_at_best": 4,
+  "git": "2ea23f0",
+  "smoke": false,
+  "dataset": "clerc",
+  "embed_s": 3682.0796291119996
+}

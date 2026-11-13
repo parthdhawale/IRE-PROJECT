@@ -303,6 +303,37 @@ by the dev search.
     formula as bm25s Lucene, unit-tested equal to a bm25s index of the same cases) instead of one index per
     cluster set, which would take hours on 10k cases. Files: `src/trr/data/clerc.py`,
     `scripts/build_clerc_pool.py`, `src/trr/chunking/fixed.py`, `kaggle/e11_clerc.ipynb`.
+- **RESULT (2026-11-13, Kaggle CPU, git e1945fb, 3.3 h).** Pool: 9,777 cases (10,007 planned, 230 source
+  opinions removed, no query dropped), 807 queries (dev 160 / test 647), mean case 43,763 characters,
+  1,074,740 chunks. Tables: `results/tables/band_dev_clerc.md`, `band_test_clerc.md`, `band_test_ci_clerc.csv`.
+  - *Dev selection:* min_df 5, max_frac 25%, k 16, rare_below 10, B 3 (dev recall@1 0.106 = 17 / 160; 2
+    settings tied; 13 more at 0.094). The dev grid is flat: one query = 0.006, so the selection is mostly noise.
+  - *Test (647 queries; doc recall@1 / @10, MRR, nDCG@10, gold cluster searched, p50 latency):*
+
+    | method | r@1 | r@10 | MRR | nDCG@10 | gold searched | p50 ms |
+    |---|---|---|---|---|---|---|
+    | band, selected (k16 B3 r10) | 0.077 | 0.291 | 0.145 | 0.180 | 0.896 | 17.6 |
+    | band, default (k8 B2 r5) | 0.087 | 0.263 | 0.139 | 0.168 | 0.920 | 14.6 |
+    | rare band, no clusters | 0.087 | 0.308 | 0.151 | 0.189 | 1 | 6.8 |
+    | rare band, oracle cluster | 0.155 | 0.447 | 0.242 | 0.291 | 1 | 7.0 |
+    | full-query doc-first BM25 | **0.116** | **0.501** | 0.212 | **0.279** | 1 | 20.5 |
+    | flat BM25 over chunks | 0.111 | 0.488 | **0.223** | 0.272 | - | 40.7 |
+
+  - *CIs (resampling gold cases):* selected vs doc-first BM25: recall@1 -0.039 [-0.064, -0.014], MRR -0.068,
+    nDCG@10 -0.100, all real. Selected vs no clusters: no difference on any metric. Selected vs oracle:
+    -0.077 [-0.101, -0.054] recall@1.
+  - *Clusters:* discovered without labels and readable as areas of federal law (k 16: immigration,
+    bankruptcy, ERISA, habeas, Social Security disability, tax, sentencing, patents, admiralty, labour
+    arbitration, employment discrimination, ...). Sizes 123-1,678, cohesion 0.29.
+  - *Timing:* band index 121 s; adding one case = place 9 ms + count row 1.2 ms, vs re-clustering 110 s.
+  - *Verdict:* **the rare band fails on CLERC.** Full-query BM25 picks the case better than BM25 over
+    rare-in-cluster words, with clusters or without (dev: rare_below 0 / 2 / 5 / 10 without clusters =
+    0.075 / 0.062 / 0.056 / 0.056). As expected before the run, the query does not name the cited case,
+    so its rare words are not that case's identifying facts; what does identify it is the shared legal
+    argument, which lives in the common words. Routing itself is fine (gold cluster searched 90% at B 3
+    of 16, a quarter of the pool searched), and it costs nothing against no clusters. The oracle shows the
+    real ceiling: even searching only the gold case's cluster, recall@1 is 0.155. The hard step on CLERC
+    is choosing among topically close cases, not finding the topic.
 
 ## E12. Embedding pipeline on CLERC: embedding clusters -> routing -> dense document (PRE-REGISTERED)
 
@@ -333,12 +364,50 @@ Written 2026-11-13 before any result. Defaults in `configs/default.yaml` (`embed
 - **Status:** built and unit-tested (`src/trr/clustering/embed_clusters.py`,
   `src/trr/retrievers/embed_pipeline.py`, `scripts/run_embed_pipeline.py`, end-to-end test on a synthetic
   pool); Kaggle notebook `kaggle/e12_clerc.ipynb` (GPU). Not run.
+- **RESULT (2026-11-13, Kaggle T4 GPU, git 2ea23f0).** Pool rebuilt in the E12 session: same metadata as
+  E11 (9,777 cases, 230 removed, 807 queries, 160 / 647 split, same 1,074,740 chunks). Tables:
+  `results/tables/embed_dev_clerc.md`, `embed_test_clerc.md`, `embed_test_ci_clerc.csv`.
+  - *Dev selection:* k 32, B 3, mean (dev recall@1 0.094; 4 settings tied).
+  - *Test (647 queries; latency excludes query encoding, 11 ms per query on the GPU, the same for all):*
+
+    | method | r@1 | r@10 | MRR | nDCG@10 | gold searched | pool searched | p50 ms |
+    |---|---|---|---|---|---|---|---|
+    | emb, selected (k32 B3 mean) | 0.096 | 0.369 | 0.172 | 0.218 | 0.760 | ~12% | 0.6 |
+    | emb, default (k8 B2 maxp) | 0.073 | 0.363 | 0.148 | 0.198 | 0.805 | ~30% | 20.1 |
+    | dense doc choice, no clusters (mean) | 0.096 | 0.399 | 0.179 | 0.231 | 1 | 100% | 3.0 |
+    | dense, oracle cluster (k32 mean) | 0.161 | 0.550 | 0.275 | 0.341 | 1 | - | 0.3 |
+    | flat dense over all chunks | 0.066 | 0.402 | 0.164 | 0.209 | - | 100% | 129 |
+
+  - *CIs:* selected vs no clusters: recall@1 0.000 [-0.009, 0.008], MRR -0.007 (no), nDCG@10 -0.012
+    [-0.022, -0.003] (real, small). Selected vs flat dense chunks: recall@1 +0.029 [0.005, 0.054], DRM@8
+    -0.040 [-0.063, -0.020], both real. Selected vs oracle: -0.065 [-0.084, -0.047].
+  - *Timing:* embedding all 1.07M chunks is cached from the dev stage; building the cluster index 7 s;
+    adding one case = embed its chunks 122 ms + place 0.2 ms, vs re-clustering 6.7 s.
+  - *Against the expectation:* (1) **mean beat maxp**, clearly (dev, no clusters: 0.088 vs 0.031). Likely
+    reason: CLERC's negatives quote the same statutes and precedents, so a single near-identical passage
+    is common in the wrong cases; the whole-case average is steadier. (2) Embedding clusters routed
+    *worse* than band clusters at equal k (dev, gold cluster searched at k 16 B 3: 0.869 vs 0.944).
+  - *Verdict:* routing with embedding clusters is a pure speed gain: searching 12% of the cases (5x faster
+    than no clusters, 200x faster than flat dense chunks) loses nothing at recall@1 and a little at
+    nDCG@10. Case-level dense choice (one vector per case) beats chunk-level dense retrieval at recall@1.
+    But dense document choice (0.096) is still below full-query BM25 doc-first (0.116, E11 run).
+- **E11 vs E12 query by query** (`scripts/compare_e11_e12.py` -> `results/tables/e11_e12_compare_clerc.md`).
+  The two sessions' `queries.parquet` are byte-identical (sha256) and every run scored the same 647
+  queries with the same gold cases.
+  - *They fail on different queries (as expected).* Of the queries that BM25 doc-first or dense case
+    choice gets right at recall@1, only 28 are shared: 47 only BM25, 34 only dense. Either one is right
+    on 16.8% (vs 11.6% for the better alone); at recall@10, either one holds the gold case on 62.8% (vs
+    50.1%). Band vs embedding pipelines: 13 shared, 37 / 49 alone.
+  - *Exploratory, not pre-registered:* plain RRF (k 60) of BM25 doc-first and dense case lists (top 10
+    each): recall@1 0.121 (+0.005 [-0.017, 0.026], not real), recall@10 0.530, MRR 0.220. A rank-only
+    fusion captures almost none of the 16.8% ceiling at rank 1, though it lifts recall@10. The fused
+    pipeline needs a signal that says *which* ranker to trust per query, not equal votes.
 
 ---
 
 ## Open items
 
-- E11 band pipeline: build, unit-test, dev search and test run (heavy runs on Kaggle).
+- E11 and E12 done on CLERC (2026-11-13). Next: a fused pipeline with a per-query confidence signal.
 - After E11 / E12: fused pipeline (stage-wise RRF, confidence-weighted); comparison
   study (bi-encoder, cross-encoder; time, throughput, accuracy, DRM); hierarchical chunking (tree descent).
 - Datasets for scale: LegalBench + EDGAR Exhibit-10 distractors (deduped against the 714 documents with

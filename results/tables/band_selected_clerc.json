@@ -1,0 +1,21 @@
+{
+  "selected": {
+    "min_df": 5,
+    "max_frac": 0.25,
+    "k": 16,
+    "rare_below": 10,
+    "b": 3
+  },
+  "default": {
+    "min_df": 5,
+    "max_frac": 0.5,
+    "k": 8,
+    "rare_below": 5,
+    "b": 2
+  },
+  "dev_doc_recall@1": 0.10625,
+  "settings_tied_at_best": 2,
+  "git": "e1945fb",
+  "smoke": false,
+  "dataset": "clerc"
+}
