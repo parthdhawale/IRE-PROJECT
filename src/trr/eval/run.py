@@ -59,7 +59,7 @@ def aggregate(records: list[dict], method: str, ks: list[int]) -> pd.DataFrame:
             rows.append({"method": method, "subset": subset, "k": k, "queries": len(g),
                          "drm": g[f"drm@{k}"].mean(), "doc_recall": g[f"doc_recall@{k}"].mean(),
                          "char_p": g[f"char_p@{k}"].mean(), "char_r": g[f"char_r@{k}"].mean(),
-                         "chars": g[f"chars@{k}"].mean(),
+                         "chars": g[f"chars@{k}"].mean(), "ndcg": g[f"ndcg@{k}"].mean(),
                          "lat_p50_ms": g["latency_ms"].median(),
                          "lat_p95_ms": g["latency_ms"].quantile(0.95)})
     out = pd.DataFrame(rows)

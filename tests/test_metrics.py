@@ -12,6 +12,7 @@ from trr.eval.metrics import (
     drm_at_k,
     intersection_length,
     merge_intervals,
+    ndcg_at_k,
     paired_bootstrap_ci,
     paired_cluster_bootstrap_macro_ci,
     query_metrics,
@@ -83,6 +84,22 @@ def test_char_recall_rises_with_k() -> None:
 def test_query_metrics_keys() -> None:
     m = query_metrics([H("a", 0, 10)], [G("a", 0, 10)], [1, 4])
     assert m["drm@1"] == 0.0 and m["char_p@4"] == 1.0 and m["char_r@1"] == 1.0 and m["chars@4"] == 10
+
+
+def test_ndcg_rewards_early_new_snippets_only() -> None:
+    gold = [G("a", 0, 10), G("a", 100, 110)]                  # two snippets
+    idcg = 1 + 1 / np.log2(3)
+    assert ndcg_at_k([H("a", 0, 5), H("a", 100, 105)], gold, 2) == pytest.approx(1.0)
+    assert ndcg_at_k([H("b", 0, 5), H("a", 0, 5)], gold, 2) == pytest.approx((1 / np.log2(3)) / idcg)
+    # a second chunk of the same snippet gains nothing
+    assert ndcg_at_k([H("a", 0, 5), H("a", 5, 10)], gold, 2) == pytest.approx(1 / idcg)
+    assert ndcg_at_k([H("b", 0, 5)], gold, 4) == 0.0
+
+
+def test_ndcg_ideal_is_capped_at_k_and_overlapping_gold_merges() -> None:
+    gold = [G("a", 0, 10), G("a", 5, 20), G("b", 0, 10)]     # a's two spans merge: 2 snippets
+    assert ndcg_at_k([H("a", 12, 15)], gold, 1) == pytest.approx(1.0)       # IDCG over min(2, 1) ranks
+    assert ndcg_at_k([H("a", 0, 30), H("b", 0, 10)], gold, 4) == pytest.approx(1.0)
 
 
 def test_paired_bootstrap() -> None:

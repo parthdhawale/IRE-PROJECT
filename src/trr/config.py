@@ -45,6 +45,8 @@ def set_seeds(seed: int) -> None:
 
 
 def git_hash() -> str:
+    """Short commit hash of the code. Outside a git checkout (e.g. the Kaggle code bundle, made by
+    kaggle/make_bundle.sh) it is read from the GIT_HASH file written into the bundle."""
     try:
         out = subprocess.run(
             ["git", "rev-parse", "--short", "HEAD"],
@@ -52,4 +54,5 @@ def git_hash() -> str:
         )
         return out.stdout.strip()
     except (subprocess.CalledProcessError, FileNotFoundError):
-        return "nogit"
+        stamp = REPO_ROOT / "GIT_HASH"
+        return stamp.read_text().strip() if stamp.exists() else "nogit"

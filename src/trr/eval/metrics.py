@@ -9,6 +9,8 @@ gold spans and look only at the top k hits.
 - Doc-Recall@k: 1 if any top-k hit comes from a gold document, else 0.
 - Char precision/recall@k: characters are counted per document; overlapping hits are merged
   first so a character retrieved twice counts once.
+- nDCG@k: rank-aware; a hit gains 1 when it reaches a gold snippet not reached before, discounted
+  by log2(rank + 1), normalised by the ideal ranking.
 """
 
 from __future__ import annotations
@@ -90,6 +92,30 @@ def char_precision_recall_at_k(hits: Sequence[Hit], gold: Sequence[GoldSpan],
     return precision, recall, ret_chars
 
 
+def ndcg_at_k(hits: Sequence[Hit], gold: Sequence[GoldSpan], k: int) -> float:
+    """Span-level nDCG@k: does the ranking put the gold snippets near the top?
+
+    Gold spans are merged per document into snippets. Hit i (rank 1, 2, ...) gains 1 if it
+    overlaps a gold snippet that no earlier hit has overlapped, else 0 -- a second chunk of an
+    already-found snippet adds nothing, so a method cannot score by repeating one answer.
+    DCG = sum of gain_i / log2(i + 1); the ideal ranking finds a new snippet at every rank, so
+    IDCG = sum over the first min(snippets, k) ranks. With this gain DCG <= IDCG: in [0, 1].
+    """
+    snippets = [(d, s, e) for d, iv in _by_doc((g.doc_id, g.start, g.end) for g in gold).items() for s, e in iv]
+    if not snippets:
+        return 0.0
+    found: set[int] = set()
+    dcg = 0.0
+    for rank, h in enumerate(hits[:k], start=1):
+        new = {j for j, (d, s, e) in enumerate(snippets)
+               if j not in found and d == h.doc_id and min(e, h.end) > max(s, h.start)}
+        if new:
+            found |= new
+            dcg += 1.0 / np.log2(rank + 1)
+    idcg = sum(1.0 / np.log2(rank + 1) for rank in range(1, min(len(snippets), k) + 1))
+    return dcg / idcg
+
+
 def query_metrics(hits: Sequence[Hit], gold: Sequence[GoldSpan], ks: Sequence[int]) -> dict[str, float]:
     """All metrics at every k for one query, as a flat dict like {'drm@4': 0.75, ...}."""
     out: dict[str, float] = {}
@@ -100,6 +126,7 @@ def query_metrics(hits: Sequence[Hit], gold: Sequence[GoldSpan], ks: Sequence[in
         out[f"char_p@{k}"] = p
         out[f"char_r@{k}"] = r
         out[f"chars@{k}"] = n
+        out[f"ndcg@{k}"] = ndcg_at_k(hits, gold, k)
     return out
 
 

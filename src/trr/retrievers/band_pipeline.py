@@ -104,7 +104,8 @@ class BandPipelineRetriever:
         model, idx, df = self.ix.local(clusters)
         rare = [w for w in unique(words) if 0 < df[w] < self.rare_below]
         used = rare or unique(words)
-        scores = np.asarray(model.get_scores(used))
+        # a query with no word left after stopwords has no evidence: every score 0 -> first document
+        scores = np.asarray(model.get_scores(used)) if used else np.zeros(len(idx))
         return self.ix.docs[idx[int(np.argmax(scores))]].doc_id, rare
 
     def retrieve(self, query: str, k: int, pool: str) -> list[Hit]:
@@ -112,7 +113,7 @@ class BandPipelineRetriever:
         clusters = self.chosen_clusters(words)
         doc_id, rare = self.choose_document(words, clusters)
         rows = self.store.subsets[POOL].doc_rows[doc_id]
-        scores = self.store.bm25_scores(POOL, query)[rows]   # chunk BM25, idf over the whole pool
+        scores = self.store.bm25_scores_in_rows(POOL, query, rows)   # chunk BM25, idf over the whole pool
         order = np.argsort(-scores, kind="stable")[:k]
         self.last_diag = {"clusters": clusters, "doc": doc_id, "n_rare": len(rare), "fallback": not rare}
         return _hits(self.store, POOL, rows[order], scores[order])

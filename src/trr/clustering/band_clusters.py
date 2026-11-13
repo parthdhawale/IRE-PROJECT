@@ -104,6 +104,9 @@ class BandClusters:
 
     def fit(self, token_lists: list[list[str]]) -> "BandClusters":
         self.vocab = mid_band_vocab(token_lists, self.min_df, self.max_frac)
+        if not self.vocab:
+            raise ValueError(f"empty mid band: no word in >= {self.min_df} and <= {self.max_frac:.0%} of "
+                             f"{len(token_lists)} documents")
         self.vec = TfidfVectorizer(analyzer=_identity, vocabulary=self.vocab, sublinear_tf=True)  # L2 rows
         x = self.vec.fit_transform(token_lists)     # idf from these documents, then frozen
         k = min(self.k, x.shape[0])

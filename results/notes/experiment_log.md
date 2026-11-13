@@ -255,8 +255,23 @@ by the dev search.
   evidence of its kind -> flat search); passage BM25 uses chunk idf over the whole pool; document ties
   go to the first document in corpus order. Routers: `band`, `none` (all clusters = rare-band doc-first
   without clustering, the ablation) and `oracle` (gold document's cluster).
+- **Added before any result (2026-11-13), reporting only, not used for selection:** span-level nDCG@10
+  (a hit gains 1 when it reaches a gold snippet not reached before; `eval.ks` now includes 10); a lexical
+  flat doc-first baseline (`mixed_docfirst_bm25` = router none with no rare band, BM25 passages) so
+  every lexical method shares the passage step; question-only runs of the selected setting and of
+  doc-first; throughput (queries/s); time to place one new document and rebuild its cluster's local
+  BM25, versus re-clustering from scratch. Cluster-local indexes are built before timing, so latency is
+  query-time work only (their build time is reported separately). Parth's final method and dense
+  doc-first run only with `--dense-baselines` (chunk embeddings, Kaggle GPU).
 - **Status:** pre-registered; split drawn (`results/tables/query_split.md`, `.csv`); pipeline built and
-  unit-tested (`src/trr/clustering/band_clusters.py`, `src/trr/retrievers/band_pipeline.py`); not run.
+  unit-tested (`src/trr/clustering/band_clusters.py`, `src/trr/retrievers/band_pipeline.py`); run script
+  `scripts/run_band_pipeline.py` (`--stage dev`, then `--stage test`); not run.
+- **Before running (2026-11-13):** passage BM25 now reads only the chosen document's rows of the
+  precomputed term-score matrix (`ChunkStore.bm25_scores_in_rows`), with scores identical to full-pool
+  scoring (unit test), so latency reflects the method. A query with no indexable word falls back to
+  the first document (tie rule) instead of crashing. Kaggle run prepared: `kaggle/README.md`,
+  `kaggle/e11_band_pipeline.ipynb` (checks the dev/test split is identical to the local one, smoke run,
+  dev, test, packaged outputs), `kaggle/make_bundle.sh`.
 
 ---
 

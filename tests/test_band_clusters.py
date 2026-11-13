@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from trr.clustering.band_clusters import BandClusters, mid_band_vocab
 
@@ -48,6 +49,11 @@ def test_route_sends_a_query_to_its_kind_and_a_blank_query_everywhere():
     c = _fit()
     assert c.route(["privacy", "data"], b=1) == [int(c.labels[3])]
     assert c.route(["unrelated", "words"], b=1) == [0, 1]     # no mid-band word: flat search
+
+
+def test_empty_mid_band_is_refused_with_a_clear_error():
+    with pytest.raises(ValueError, match="empty mid band"):
+        BandClusters(min_df=20, max_frac=0.5, k=2, n_init=1, max_iter=5, seed=0).fit(DOCS)
 
 
 def test_k_never_exceeds_the_number_of_documents():

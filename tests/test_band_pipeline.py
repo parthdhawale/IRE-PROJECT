@@ -73,6 +73,21 @@ def test_hits_are_original_offsets_of_the_chosen_document(setup):
     assert len(hits) == len(chunks)      # k=10 > chunks of the document: every chunk, once
 
 
+def test_scoring_one_documents_rows_equals_scoring_the_pool(setup):
+    store, _ = setup
+    for doc in ("contractnli/Acme.txt", "maud/m2.txt"):
+        rows = store.subsets[POOL].doc_rows[doc]
+        for q in (QUERY, "merger closing closing shares", "zzz unknown words"):
+            assert store.bm25_scores_in_rows(POOL, q, rows) == pytest.approx(store.bm25_scores(POOL, q)[rows],
+                                                                             rel=1e-6, abs=1e-9)
+
+
+def test_query_without_any_indexable_word_still_gets_an_answer(setup):
+    ret = _ret(setup)
+    hits = ret.retrieve("the of and", k=3, pool=POOL)    # stopwords only
+    assert ret.last_diag["fallback"] and hits
+
+
 def test_oracle_routes_to_the_gold_documents_cluster(setup):
     ret = _ret(setup, router="oracle")
     ret.set_gold({"maud/m2.txt"})

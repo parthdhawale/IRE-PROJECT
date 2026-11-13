@@ -19,7 +19,7 @@ data:
   mini_per_subset: 194
 
 eval:
-  ks: [1, 2, 4, 8, 16, 32, 64]
+  ks: [1, 2, 4, 8, 10, 16, 32, 64]   # 10 for nDCG@10
   bootstrap_resamples: 1000
   bootstrap_seed: 0
   # Dev / test split of the queries (trr.eval.splits): a query is dev when its gold document is in
@@ -125,7 +125,7 @@ band_clusters:
   rare_below: 5           # = min_df: the two bands meet at one cut-off
   k: 8                    # clusters (spherical k-means on L2-normalised mid-band tf-idf)
   b: 2                    # clusters searched per query
-  kmeans_n_init: 10       # k-means restarts; the best (lowest inertia) is kept
+  kmeans_n_init: 10       # k-means restarts; the best (highest total cosine to own centroid) is kept
   kmeans_max_iter: 300
   passage: bm25           # passage step inside the chosen document: bm25 (fully lexical) | dense
   # dev grid. Selection: document recall@1 averaged over all dev QUERIES (not macro over subsets:
@@ -136,6 +136,10 @@ band_clusters:
   sweep_rare_below: [2, 5, 10]
   sweep_k: [4, 8, 16, 32]
   sweep_b: [1, 2, 3]
+  # reporting (scripts/run_band_pipeline.py); none of these choose a setting
+  ci_metrics: ["doc_recall@1", "drm@8", "ndcg@10"]   # document-level paired bootstrap on test
+  add_doc_trials: 20      # documents timed when measuring "add one document" (median reported)
+  smoke_queries: 5        # --smoke: queries per subset and side
 
 # External, non-legal two-level hierarchy for the document-grouping test (scripts/run_wos_grouping.py).
 # Same routers, routing parameters, folds and gates as LegalBench-RAG; only the documents differ.

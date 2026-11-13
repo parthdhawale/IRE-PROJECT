@@ -50,6 +50,9 @@ class BM25Retriever(_Base):
     length normalisation via b)."""
     name = "bm25"
 
+    def prepare_queries(self, queries: list[str]) -> None:
+        """BM25 uses no query vectors: nothing to encode (and no embedding model is loaded)."""
+
     def retrieve(self, query: str, k: int, pool: str) -> list[Hit]:
         rows, scores = self.store.bm25_search(pool, query, k)
         return _hits(self.store, pool, rows, scores)

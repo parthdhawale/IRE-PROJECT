@@ -13,6 +13,7 @@ from pathlib import Path
 import bm25s
 import faiss
 import numpy as np
+from scipy import sparse
 
 from trr.chunking.recursive import split_recursive
 from trr.config import config_hash
@@ -30,6 +31,7 @@ class SubsetChunks:
     emb: np.ndarray | None = None     # (n_chunks, dim) float32, L2-normalised
     faiss_index: faiss.Index | None = None
     embed_texts: list[str] | None = None  # text given to the encoder, if not `texts` (e.g. breadcrumb + leaf)
+    bm25_by_row: sparse.csr_matrix | None = None  # BM25 term scores, one row per chunk (bm25_scores_in_rows)
 
 
 def tokenize(texts: list[str]):
@@ -135,6 +137,28 @@ class ChunkStore:
         words = bm25s.tokenize([query], lower=True, stopwords="en", return_ids=False,
                                show_progress=False)[0]
         return np.asarray(self.bm25(subset).get_scores(words))
+
+    def bm25_scores_in_rows(self, subset: str, query: str, rows: np.ndarray) -> np.ndarray:
+        """BM25 scores of the given chunk rows only: the same numbers as bm25_scores(...)[rows].
+
+        bm25s precomputes each (word, chunk) BM25 term score at index time, stored word by word.
+        Turned once into one row per chunk, a document's chunks can be scored from their own rows:
+        the work grows with the document, not with the pool (a query word like "agreement" has
+        postings in most of the pool's chunks, but only in this document's rows here).
+        """
+        model, sc = self.bm25(subset), self.subsets[subset]
+        if sc.bm25_by_row is None:
+            s = model.scores
+            sc.bm25_by_row = sparse.csc_matrix((s["data"], s["indices"], s["indptr"]),
+                                               shape=(s["num_docs"], len(s["indptr"]) - 1)).tocsr()
+        words = bm25s.tokenize([query], lower=True, stopwords="en", return_ids=False, show_progress=False)[0]
+        ids = model.get_tokens_ids(words)            # repeated query words count twice, as in get_scores
+        scores = np.zeros(len(rows), dtype=np.float64)
+        if ids:
+            scores += np.asarray(sc.bm25_by_row[rows][:, ids].sum(axis=1)).ravel()
+            if model.nonoccurrence_array is not None:  # BM25 variants that score absent words (not ours)
+                scores += model.nonoccurrence_array[ids].sum()
+        return scores
 
     def bm25_search(self, subset: str, query: str, depth: int) -> tuple[np.ndarray, np.ndarray]:
         """(row indices, scores) of the top `depth` chunks by BM25."""
