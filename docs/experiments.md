@@ -20,7 +20,8 @@ document (lower is better). "Real" = the document-level bootstrap CI excludes 0 
 | E8 | conc_lr (band + concentration filter) | Designed; main sweep not run |
 | E9 | Band-edge sweep on Web of Science, confirmed on unseen folds | Floor of ~0.1% is better by 4-5 points (coarse) |
 | E10 | Track B: group-first retrieval, header-only document choice | DRM@8 .161 -> .108, real but small |
-| E11 | Band pipeline (our method) on CLERC | Pre-registered, built, not yet run |
+| E11 | Band pipeline (our method) on CLERC | Running on Kaggle |
+| E12 | Embedding pipeline on CLERC | Pre-registered, built, not yet run |
 
 ---
 
@@ -196,10 +197,24 @@ document (lower is better). "Real" = the document-level bootstrap CI excludes 0 
   builder `scripts/build_clerc_pool.py`; run script `scripts/run_band_pipeline.py --dataset clerc`; Kaggle
   notebook `kaggle/e11_clerc.ipynb`. Not run.
 
+## E12. Embedding pipeline on CLERC (pre-registered)
+
+- **Question:** E11's three steps with embeddings instead of word frequencies, on the same pool, split
+  and test queries, so the two compare query by query.
+- **Method:** bge-small vectors of every chunk; a case's vector = the normalised mean of its chunk
+  vectors; spherical k-means; the query embedding routed to the top-B centroids; cases ranked by
+  `mean` (query vs case vector) or `maxp` (the case's best chunk); the top case's chunks ranked by
+  cosine. Details: D60-D64.
+- **Dev search:** k {8 ... 128} x B {1, 2, 3} x {mean, maxp}; same selection rule as E11.
+- **Baselines:** flat dense retrieval over all chunks, flat dense document choice (no clusters), oracle routing.
+- **Expectation:** routing at least as good as E11; picking the exact case is harder for embeddings than
+  for rare words; maxp beats mean; E11 and E12 fail on different queries (the case for fusion).
+- **Status:** built and unit-tested; Kaggle notebook `kaggle/e12_clerc.ipynb` (GPU). Not run.
+
 ---
 
 ## Planned
-- Embedding-cluster pipeline; fused pipeline (confidence-weighted RRF per stage); comparison study
+- Fused pipeline (confidence-weighted RRF per stage); comparison study
   against a trained bi-encoder and cross-encoder; hierarchical chunking.
 - Bigger pools: LegalBench + EDGAR distractors, then CLERC 10k / 30k / 100k.
 - conc_lr sweep on Web of Science; learning curve (subsample training documents per class).

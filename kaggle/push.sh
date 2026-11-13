@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Upload the bundle to Kaggle and start the E11 notebook, with the Kaggle CLI and ~/.kaggle/kaggle.json.
 #   kaggle/push.sh datasets   # create (private) or update the trr-code dataset
-#   kaggle/push.sh kernel     # push kaggle/e11_clerc.ipynb as a private notebook: Kaggle runs it (Save & Run All)
+#   kaggle/push.sh kernel e11_clerc        # push kaggle/<name>.ipynb as private notebook trr-<name-with-dashes>;
+#   kaggle/push.sh kernel e12_clerc gpu    # Kaggle runs it on push (Save & Run All); "gpu" turns the GPU on
 # Build the bundle first (kaggle/make_bundle.sh). The account name is read from the token file at run time.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -28,19 +29,22 @@ case "${1:-}" in
     done
     ;;
   kernel)
-    d="$out/kernel"
+    nb="${2:?notebook name, e.g. e11_clerc}"
+    slug="trr-${nb//_/-}"
+    gpu=false; [ "${3:-}" = gpu ] && gpu=true
+    d="$out/kernel_$nb"
     rm -rf "$d" && mkdir -p "$d"
-    cp kaggle/e11_clerc.ipynb "$d/"
+    cp "kaggle/$nb.ipynb" "$d/"
     cat > "$d/kernel-metadata.json" <<EOF
-{"id": "$user/trr-e11-clerc", "title": "trr-e11-clerc", "code_file": "e11_clerc.ipynb",
- "language": "python", "kernel_type": "notebook", "is_private": true, "enable_gpu": false,
+{"id": "$user/$slug", "title": "$slug", "code_file": "$nb.ipynb",
+ "language": "python", "kernel_type": "notebook", "is_private": true, "enable_gpu": $gpu,
  "enable_internet": true, "dataset_sources": ["$user/trr-code"],
  "competition_sources": [], "kernel_sources": []}
 EOF
     $K kernels push -p "$d"
     ;;
   *)
-    echo "usage: kaggle/push.sh datasets|kernel" >&2
+    echo "usage: kaggle/push.sh datasets | kernel <notebook> [gpu]" >&2
     exit 1
     ;;
 esac

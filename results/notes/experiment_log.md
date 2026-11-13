@@ -304,12 +304,42 @@ by the dev search.
     cluster set, which would take hours on 10k cases. Files: `src/trr/data/clerc.py`,
     `scripts/build_clerc_pool.py`, `src/trr/chunking/fixed.py`, `kaggle/e11_clerc.ipynb`.
 
+## E12. Embedding pipeline on CLERC: embedding clusters -> routing -> dense document (PRE-REGISTERED)
+
+Written 2026-11-13 before any result. Defaults in `configs/default.yaml` (`embed_clusters`).
+
+- **Question:** the same three steps as E11 with embeddings instead of word frequencies -- how well do
+  embedding clusters route, and how well does a dense document choice pick the exact case? Run on the
+  same pool, split and test queries as E11, so the two compare query by query (and can be fused later).
+- **Method:** every 500-character chunk embedded with bge-small (fixed model, GPU); a case's vector =
+  normalised mean of its chunk vectors; spherical k-means (same code and restarts as E11) -> query embedding
+  routed to the top-B centroids -> the searched cases ranked by `mean` (query . case vector) or `maxp` (the
+  case's best chunk, as the CLERC paper's MaxP) -> top case; its chunks ranked by cosine. Chunk vectors are
+  stored grouped by cluster (an inverted-file layout), so routing cuts the work.
+- **Data / split:** the E11 pool (10,000 cases), rebuilt in the E12 session by the same deterministic
+  builder (same code, seed and files); the two pools are compared after both runs. Same dev / test split.
+- **Dev search:** k {8, 16, 32, 64, 128} x B {1, 2, 3} x document score {mean, maxp}; selection as E11 (most
+  correct dev queries at document recall@1; ties -> smaller k, then smaller B, then grid order). Defaults
+  k = 8, B = 2, maxp. Test scored once with the selected setting and the defaults.
+- **Metrics:** as E11 (document recall@1 / @10, MRR, nDCG@10, DRM@1/8, gold cluster searched, latency,
+  queries/s, cohesion and sizes), plus query-encoding time per query and the time to add one case (embed
+  its chunks + place it) vs re-clustering. Document-level CIs.
+- **Baselines:** flat dense retrieval over all chunks (standard chunk RAG), the no-cluster ablation (flat
+  dense document choice) and oracle routing. Comparison with E11 from the per-query run files afterwards.
+- **Expectation:** embeddings capture topic well, so routing (gold case's cluster searched) should be at
+  least as good as E11's; picking the exact case among topically close negatives is harder for embeddings
+  than for rare words, so `maxp` should beat `mean`, and E11 and E12 should fail on different queries
+  (the case for fusion).
+- **Status:** built and unit-tested (`src/trr/clustering/embed_clusters.py`,
+  `src/trr/retrievers/embed_pipeline.py`, `scripts/run_embed_pipeline.py`, end-to-end test on a synthetic
+  pool); Kaggle notebook `kaggle/e12_clerc.ipynb` (GPU). Not run.
+
 ---
 
 ## Open items
 
 - E11 band pipeline: build, unit-test, dev search and test run (heavy runs on Kaggle).
-- After E11: embedding-cluster pipeline; fused pipeline (stage-wise RRF, confidence-weighted); comparison
+- After E11 / E12: fused pipeline (stage-wise RRF, confidence-weighted); comparison
   study (bi-encoder, cross-encoder; time, throughput, accuracy, DRM); hierarchical chunking (tree descent).
 - Datasets for scale: LegalBench + EDGAR Exhibit-10 distractors (deduped against the 714 documents with
   MinHash); CLERC subsampled pools (10k / 30k / 100k) if its licence and court metadata check out.

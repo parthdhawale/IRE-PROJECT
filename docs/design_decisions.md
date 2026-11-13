@@ -105,11 +105,21 @@ Route with the mid band, pick the document with the rare band, rank passages ins
 | D58 | **Document-level evaluation:** the pipeline ranks 10 cases per query. Metrics are recall@1 / @10, MRR, nDCG@10 over cases, and DRM; no character metrics. Cluster quality = sizes, cohesion, names (no labels for NMI / ARI). k grid scaled to {8 ... 128}. | CLERC's gold is a case, not a span. Passage-level gold can be added later. | fixed |
 | D59 | **Cluster-local BM25 from one shared count matrix**, same formula as bm25s (Lucene), instead of one BM25 index per cluster set. | Identical scores (unit-tested), but no per-query index builds, which would take hours on 10k long cases. The counts are shared by every clustering of the dev grid. | fixed |
 
+## 7c. E12 embedding pipeline (pre-registered 2026-11-13)
+
+| # | decision | reason | status |
+|---|---|---|---|
+| D60 | **Same three steps, same pool, split, k-means and selection rule as E11; only the representation changes** (bge-small embeddings instead of mid-band words). | The two pipelines then differ in one thing, compare query by query, and can be fused stage by stage. | fixed |
+| D61 | **A case's vector = the normalised mean of its chunk vectors.** | Represents the whole case, not its first page; this whole-document centroid routed best in E10. | fixed |
+| D62 | **Document score chosen on dev between `mean` (query vs case vector) and `maxp` (the case's best chunk).** | A long case's average blurs its specifics; the best single passage is what a citation points to (MaxP, the CLERC paper's ColBERT setup). Dev decides. | fixed, tuned on dev |
+| D63 | **Chunk vectors stored grouped by cluster** (one contiguous block per cluster, an inverted-file layout). | Searching B clusters reads only their blocks, so routing really cuts the work, as for the lexical pipeline; scores are identical to brute force (unit-tested). | fixed |
+| D64 | **E12 rebuilds the pool in its own Kaggle session** with the same deterministic builder, instead of waiting for E11's output. | Runs E11 and E12 in parallel; the builder is seeded and the files are fixed, so the pool is identical (checked after both runs). Costs one more ~13 GB download on Kaggle's side. | fixed |
+
 ## 8. Later pipelines
 
 | # | decision | reason | status |
 |---|---|---|---|
-| D48 | **Order of work: band pipeline (E11) -> embedding pipeline -> fused pipeline -> comparison study -> hierarchical chunking -> bigger datasets.** | Measure each signal alone first, so the gain of combining them can be attributed. | planned |
+| D48 | **Order of work: band pipeline (E11) -> embedding pipeline (E12) -> fused pipeline -> comparison study -> hierarchical chunking -> bigger datasets.** | Measure each signal alone first, so the gain of combining them can be attributed. | planned |
 | D49 | **Fused pipeline = RRF at each stage, weighted by confidence** (e.g. a large score gap between the top two documents makes the rare-band ranking count more; no rare word makes the dense ranking lead). Weights chosen on dev. | Rare words catch names and amounts, embeddings catch paraphrases. Fusion is mainly expected to help at the document stage, where wrong-document errors happen. Training-free (D1). | planned |
 | D50 | **Comparison study: our routers and pipelines vs a trained bi-encoder and cross-encoder,** on time, throughput, accuracy, DRM and nDCG@10. | The trained models are the standard alternative; the question is what they buy and at what cost (query-time cost, need for labelled data, re-embedding when the model changes). | planned |
 | D51 | **Adaptive B** (add the 2nd / 3rd cluster only when its similarity is close to the top one). | Confident queries search narrowly, uncertain ones widely. Not in the E11 grid, so it is its own experiment. | idea |

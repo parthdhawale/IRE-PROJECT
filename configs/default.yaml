@@ -141,6 +141,19 @@ band_clusters:
   add_doc_trials: 20      # documents timed when measuring "add one document" (median reported)
   smoke_queries: 5        # --smoke: queries per subset and side
 
+embed_clusters:
+  # E12 embedding pipeline (pre-registered 2026-11-13, before any result): embedding clusters ->
+  # embedding routing -> dense document -> dense passages (src/trr/retrievers/embed_pipeline.py).
+  # Same pool, split, selection rule and test-once as E11; embeddings = embedding.dev_model.
+  # A document's vector = normalised mean of its chunk vectors; k-means settings as band_clusters.
+  k: 8                    # defaults mirror E11's
+  b: 2
+  doc_score: maxp         # mean = query . document vector; maxp = the document's best chunk
+  sweep_k: [8, 16, 32, 64, 128]
+  sweep_b: [1, 2, 3]
+  sweep_doc_score: [mean, maxp]
+  add_doc_trials: 20      # documents timed for "add one document" (embed its chunks + place it)
+
 # External, non-legal two-level hierarchy for the document-grouping test (scripts/run_wos_grouping.py).
 # Same routers, routing parameters, folds and gates as LegalBench-RAG; only the documents differ.
 wos:

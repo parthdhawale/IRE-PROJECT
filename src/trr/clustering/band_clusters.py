@@ -40,17 +40,22 @@ def mid_band_vocab(token_lists: list[list[str]], min_df: int, max_frac: float) -
     return sorted(w for w, d in df.items() if min_df <= d <= max_frac * n)
 
 
-def _kmeans_plus_plus(x: sparse.csr_matrix, k: int, rng: np.random.Generator) -> np.ndarray:
+def _row(x, i: int) -> np.ndarray:
+    """Row i of x as a dense 1-D array (x sparse or dense)."""
+    return x[i].toarray()[0] if sparse.issparse(x) else np.asarray(x[i], dtype=float)
+
+
+def _kmeans_plus_plus(x, k: int, rng: np.random.Generator) -> np.ndarray:
     """k starting centroids: the first at random, each next one drawn with probability proportional
     to its squared distance (1 - cosine) from the nearest centroid chosen so far (k-means++), so
     the starts are spread over the collection."""
     n = x.shape[0]
-    centres = [x[rng.integers(n)].toarray()[0]]
+    centres = [_row(x, int(rng.integers(n)))]
     nearest = np.asarray(x @ centres[0]).ravel()          # best cosine to any chosen centre
     for _ in range(1, k):
         d2 = np.clip(1.0 - nearest, 0.0, None) ** 2
         p = d2 / d2.sum() if d2.sum() > 0 else np.full(n, 1.0 / n)
-        c = x[rng.choice(n, p=p)].toarray()[0]
+        c = _row(x, int(rng.choice(n, p=p)))
         centres.append(c)
         nearest = np.maximum(nearest, np.asarray(x @ c).ravel())
     return np.stack(centres)
@@ -60,17 +65,18 @@ def _unit_rows(m: np.ndarray) -> np.ndarray:
     return m / np.maximum(np.linalg.norm(m, axis=1, keepdims=True), 1e-12)
 
 
-def cluster_sums(x: sparse.csr_matrix, labels: np.ndarray, k: int) -> np.ndarray:
-    """(k, n_words) sum of the document vectors of each cluster."""
+def cluster_sums(x, labels: np.ndarray, k: int) -> np.ndarray:
+    """(k, n_dims) sum of the document vectors of each cluster (x sparse or dense)."""
     member = sparse.csr_matrix((np.ones(len(labels)), (labels, np.arange(len(labels)))), shape=(k, x.shape[0]))
-    return np.asarray((member @ x).todense())
+    sums = member @ x
+    return sums.toarray() if sparse.issparse(sums) else np.asarray(sums, dtype=float)
 
 
-def spherical_kmeans(x: sparse.csr_matrix, k: int, n_init: int, max_iter: int,
-                     seed: int) -> tuple[np.ndarray, np.ndarray]:
+def spherical_kmeans(x, k: int, n_init: int, max_iter: int, seed: int) -> tuple[np.ndarray, np.ndarray]:
     """(labels, unit centroids) of the best of n_init runs, best = highest total cosine of the
-    documents to their own centroid. Rows of x must be unit length (or zero: a document with no
-    mid-band word, which goes to cluster 0 and does not pull any centroid)."""
+    documents to their own centroid. x: sparse tf-idf rows (band clusters) or dense embeddings
+    (embedding clusters). Rows must be unit length (or zero: a document with no mid-band word,
+    which goes to cluster 0 and does not pull any centroid)."""
     rng = np.random.default_rng(seed)
     n, best = x.shape[0], None
     for _ in range(n_init):
@@ -85,7 +91,7 @@ def spherical_kmeans(x: sparse.csr_matrix, k: int, n_init: int, max_iter: int,
             fit = sims[np.arange(n), labels]
             for c in np.flatnonzero(np.bincount(labels, minlength=k) == 0):
                 worst = int(np.argmin(fit))                  # an empty cluster restarts at the
-                sums[c], fit[worst] = x[worst].toarray()[0], np.inf   # worst-fitting document
+                sums[c], fit[worst] = _row(x, worst), np.inf   # worst-fitting document
             centroids = _unit_rows(sums)
         sims = np.asarray(x @ centroids.T)
         labels = sims.argmax(axis=1)

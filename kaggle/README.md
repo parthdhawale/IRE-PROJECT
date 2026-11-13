@@ -17,7 +17,8 @@ LegalBench is not involved; its real-data unit tests skip themselves when its fi
 **With the Kaggle CLI** (token in `~/.kaggle/kaggle.json`; `pip install kaggle` in the venv):
 
     kaggle/push.sh datasets    # private dataset trr-code (a new version each time)
-    kaggle/push.sh kernel      # pushes the notebook; Kaggle runs it (Save & Run All)
+    kaggle/push.sh kernel e11_clerc       # E11 (CPU); Kaggle runs it on push (Save & Run All)
+    kaggle/push.sh kernel e12_clerc gpu   # E12 embedding pipeline (GPU)
     .venv/bin/kaggle kernels status <user>/trr-e11-clerc
     .venv/bin/kaggle kernels output <user>/trr-e11-clerc -p dist/kaggle/output
 
