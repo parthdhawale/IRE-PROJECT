@@ -90,20 +90,28 @@ class ChunkStore:
             {d: np.array(r) for d, r in rows.items()})
         self.docs[subset] = {d.doc_id: d for d in docs}
 
-    def merge(self, name: str, parts: list[str]) -> None:
+    def merge(self, name: str, parts: list[str], embeddings: bool = True) -> None:
         """One pool `name` made of already-added subsets (e.g. all 714 documents together).
 
         Rows are concatenated and embeddings reused from each part's cache, so the mixed pool
-        holds exactly the same chunks and vectors as the per-subset pools.
+        holds exactly the same chunks and vectors as the per-subset pools. embeddings=False builds
+        a lexical-only pool (BM25 works, dense search does not): for fully lexical methods, which
+        must not trigger embedding every chunk.
         """
         if name in self.subsets:
             return
         scs = [self.subsets[p] for p in parts]
-        embs = [self.embeddings(p) for p in parts]
         offset, rows = 0, {}
         for sc in scs:
             rows.update({d: r + offset for d, r in sc.doc_rows.items()})
             offset += len(sc.texts)
+        if not embeddings:
+            self.subsets[name] = SubsetChunks(
+                [d for sc in scs for d in sc.doc_ids], np.concatenate([sc.starts for sc in scs]),
+                np.concatenate([sc.ends for sc in scs]), [t for sc in scs for t in sc.texts], rows)
+            self.docs[name] = {k: v for p in parts for k, v in self.docs[p].items()}
+            return
+        embs = [self.embeddings(p) for p in parts]
         merged = SubsetChunks(
             [d for sc in scs for d in sc.doc_ids], np.concatenate([sc.starts for sc in scs]),
             np.concatenate([sc.ends for sc in scs]), [t for sc in scs for t in sc.texts], rows,

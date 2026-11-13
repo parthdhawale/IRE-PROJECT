@@ -250,7 +250,13 @@ by the dev search.
   E10); the rare band is where DRM can fall, and it should hold without the header where the header trick
   cannot. Some NDA misses are unfixable lexically (party name absent from the document text). k-means will
   be lopsided (462 CUAD vs 7 PrivacyQA documents).
-- **Status:** pre-registered; split drawn (`results/tables/query_split.md`, `.csv`); pipeline not built.
+- **Implementation details fixed while building (before any result):** rarity and idf are counted over
+  the union of the B searched clusters; a query with no mid-band word is routed to every cluster (no
+  evidence of its kind -> flat search); passage BM25 uses chunk idf over the whole pool; document ties
+  go to the first document in corpus order. Routers: `band`, `none` (all clusters = rare-band doc-first
+  without clustering, the ablation) and `oracle` (gold document's cluster).
+- **Status:** pre-registered; split drawn (`results/tables/query_split.md`, `.csv`); pipeline built and
+  unit-tested (`src/trr/clustering/band_clusters.py`, `src/trr/retrievers/band_pipeline.py`); not run.
 
 ---
 
