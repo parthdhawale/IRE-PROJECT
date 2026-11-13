@@ -1,3 +1,5 @@
+import bm25s
+import numpy as np
 import pytest
 
 from trr.data.load import Document
@@ -71,6 +73,26 @@ def test_hits_are_original_offsets_of_the_chosen_document(setup):
                                                    store.subsets[POOL].ends) if d == "contractnli/Acme.txt"}
     assert hits and all((h.start, h.end) in chunks and 0 <= h.start < h.end <= len(text) for h in hits)
     assert len(hits) == len(chunks)      # k=10 > chunks of the document: every chunk, once
+
+
+def test_local_bm25_equals_a_bm25s_index_of_the_same_documents(setup):
+    ix = setup[1]
+    words = ["acme", "merger", "confidential", "closing", "nobody"]
+    for clusters in ([0], [1], [0, 1]):
+        mask = ix.local(clusters)
+        idx = np.flatnonzero(mask)
+        ref = bm25s.BM25(k1=CFG["bm25"]["k1"], b=CFG["bm25"]["b"])
+        ref.index([ix.doc_tokens[i] for i in idx], show_progress=False)
+        assert ix.bm25(words, mask)[idx] == pytest.approx(np.asarray(ref.get_scores(words)), rel=1e-5)
+        assert not ix.bm25(words, mask)[~mask].any()                  # 0 outside the clusters
+
+
+def test_documents_are_ranked_and_the_top_one_is_the_choice(setup):
+    ret = _ret(setup)
+    ranked, rare = ret.rank_documents(tokenize_words([QUERY])[0], [setup[1].doc_cluster["contractnli/Acme.txt"]], 3)
+    assert ranked[0] == "contractnli/Acme.txt" and len(ranked) == 3 and rare == ["acme"]
+    ret.retrieve(QUERY, k=3, pool=POOL)
+    assert ret.last_diag["docs"][0] == ret.last_diag["doc"]
 
 
 def test_scoring_one_documents_rows_equals_scoring_the_pool(setup):

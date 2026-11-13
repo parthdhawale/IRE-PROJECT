@@ -148,3 +148,32 @@ wos:
   version: WOS46985           # 46,985 abstracts, 7 domains -> 134 areas
   sweep_folds: 1              # folds scored by the sweeps: fold 0 = ~9,400 held-out abstracts (SE of an
                               # accuracy ~0.005); all 5 would take many hours of logistic regressions
+
+# E11 on CLERC (jhu-clsp/CLERC on Hugging Face): full US federal court cases, no class labels, so the
+# band clusters are the only grouping. Licence not stated in the release: private use only, never
+# redistributed. Pool and queries: scripts/build_clerc_pool.py (Kaggle); loader: trr/data/clerc.py.
+clerc:
+  hf_repo: jhu-clsp/CLERC     # Hugging Face dataset repo (files fetched with huggingface_hub, resumable)
+  queries_file: teva_train_dir/train_data.jsonl.gz   # query + 1 positive + 20 negative PASSAGES (ids = passage ids)
+  pid2did_file: collection/mapping.pid2did.tsv       # passage id -> case id
+  docs_file: collection/collection.doc.tsv.gz        # case id \t full text (one line per case, no line breaks)
+  root: data/external/clerc
+  # Pool: queries in a seeded random order; each adds its gold case and its CLERC negative cases
+  # (negative passages mapped to cases, duplicates and the gold case removed) until pool_docs cases.
+  # No random fill: only CLERC's own documents. Larger pools continue the same order (nested).
+  pool_docs: 10000
+  # The query's own source opinion (the citing case) would match the query verbatim. A pool case
+  # holding >= source_min_probes of the query's source_probes word windows (source_probe_words long),
+  # among the query's top source_check_top full-query BM25 cases, is that source: it is removed from
+  # the pool (or, if it is some query's gold case, the query is dropped).
+  source_probe_words: 12
+  source_probes: 3
+  source_min_probes: 2
+  source_check_top: 5
+  dev_share: 0.2              # share of gold cases whose queries are dev (the rest are test)
+  # fixed windows with overlap: CLERC texts have no line breaks, so paragraph splitting finds nothing
+  chunking: {method: fixed, chunk_chars: 500, overlap: 100}
+  # E11 dev grid on CLERC: k scaled to a 10k-case pool; the other grids as for LegalBench
+  sweep_k: [8, 16, 32, 64, 128]
+  doc_list: 10                # documents ranked per query (document recall@10, nDCG@10, MRR); ci_metrics use it
+  ci_metrics: ["rdoc_recall@1", "rdoc_mrr", "rdoc_ndcg@10", "drm@8"]

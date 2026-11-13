@@ -20,7 +20,7 @@ document (lower is better). "Real" = the document-level bootstrap CI excludes 0 
 | E8 | conc_lr (band + concentration filter) | Designed; main sweep not run |
 | E9 | Band-edge sweep on Web of Science, confirmed on unseen folds | Floor of ~0.1% is better by 4-5 points (coarse) |
 | E10 | Track B: group-first retrieval, header-only document choice | DRM@8 .161 -> .108, real but small |
-| E11 | Band pipeline (our method) | Pre-registered, built, not yet run |
+| E11 | Band pipeline (our method) on CLERC | Pre-registered, built, not yet run |
 
 ---
 
@@ -170,25 +170,31 @@ document (lower is better). "Real" = the document-level bootstrap CI excludes 0 
 - **Files:** `results/notes/phase2_trackB.md`, `phase3_full_run.md`, `results/tables/paired_ci_full.md`,
   `group_first_full.md`.
 
-## E11. Band pipeline: band clusters -> band routing -> rare-in-cluster document (pre-registered)
+## E11. Band pipeline on CLERC: discovered clusters -> routing -> rare-in-cluster document (pre-registered)
 
-- **Question:** can a purely word-frequency pipeline group documents, route a query to its group and
-  pick the exact document, extendibly, and how does it compare with Track B's method?
-- **Method:** mid band (words in >= 5 documents and <= 50%) -> sublinear tf-idf -> spherical k-means
-  (k = 8) -> route the query to the top B = 2 clusters -> BM25 over the query's words that are rare
-  (< 5 documents) inside those clusters picks one document -> BM25 ranks its passages. Details: D34-D47.
-- **Data / split:** one mixed pool of 714 documents; dev 1,403 queries / 143 documents, test 5,486 / 571,
-  split by gold document.
-- **Dev search:** min_df {2, 5, 20} x max_frac {25%, 50%} x rare_below {2, 5, 10} x k {4, 8, 16, 32} x
+- **Question:** on a collection with no predefined classes, can a purely word-frequency pipeline build
+  its own clusters, route a query to them and pick the exact document, extendibly? How accurate is it
+  per query, against flat BM25 and doc-first?
+- **Why CLERC (amended 2026-11-13, before any result):** LegalBench's groups are known, so it cannot test
+  discovered clusters. CLERC's 1.84M federal court cases carry no class labels. The LegalBench run was
+  skipped.
+- **Method:** mid band (words in >= 5 cases and <= 50%) -> sublinear tf-idf -> spherical k-means -> route
+  the query to the top B clusters -> BM25 over the query's words that are rare (< 5 cases) inside those
+  clusters ranks the cases -> BM25 ranks the top case's passages. Details: D34-D46, D52-D59.
+- **Data:** CLERC training queries with CLERC's own negatives. Their ids are passage ids, mapped to
+  cases; full case texts are used. Pool = 10,000 cases (gold + negative cases of queries in a seeded order;
+  no random fill), each query's own source opinion removed. Split: 20% of gold cases -> dev, rest -> test.
+- **Dev search:** min_df {2, 5, 20} x max_frac {25%, 50%} x rare_below {2, 5, 10} x k {8, 16, 32, 64, 128} x
   B {1, 2, 3}; selection = document recall@1 over dev queries.
-- **Metrics:** document recall@1, DRM@1/8, nDCG@10, character recall, how often the right cluster is
-  searched, fallback rate, latency, queries/s, cluster quality (NMI / ARI), time to add one document vs
-  re-clustering; document-level CIs.
-- **Expectation (written before running):** clusters cut the searched pool a lot and DRM only a little;
-  the rare band is where DRM can fall, and it should hold without the header; some NDA misses are
-  unfixable lexically; k-means clusters will be uneven.
-- **Status:** built and unit-tested (89 tests pass); run script `scripts/run_band_pipeline.py`; passage
-  scoring restricted to the chosen document (D47); Kaggle notebook and bundle ready (`kaggle/`). Not run.
+- **Metrics:** document recall@1 / @10, MRR, nDCG@10 over ranked cases; DRM@1/8; gold cluster searched;
+  fallback rate; latency, queries/s; time to add one case vs re-clustering; cluster sizes, cohesion and
+  names; CIs resampling gold cases. No character metrics (document-level gold only).
+- **Expectation (written before running):** queries do not name the cited case, so the rare band is weaker
+  than on LegalBench; CLERC's negatives are topically close, so routing will rarely exclude them; any gain
+  comes from the rare band inside the cluster.
+- **Status:** built and unit-tested (107 tests, including an end-to-end run on a synthetic pool); pool
+  builder `scripts/build_clerc_pool.py`; run script `scripts/run_band_pipeline.py --dataset clerc`; Kaggle
+  notebook `kaggle/e11_clerc.ipynb`. Not run.
 
 ---
 

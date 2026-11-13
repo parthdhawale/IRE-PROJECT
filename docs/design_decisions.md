@@ -27,7 +27,7 @@ Status: **fixed** = in use; **tried, dropped** = tested and not adopted; **plann
 | D8 | **Read text with universal newlines; normalise document ids to Unicode NFC.** | Raw bytes broke 2,801 of 2,839 MAUD spans; macOS file names (NFD) broke 8 CUAD snippets. With both fixes the span round-trip is 100% (E0). | fixed |
 | D9 | **Develop on the mini benchmark (194 queries per subset), run full only when a phase passes its check.** | Fast iteration. Caveat: mini is part of full, so a setting picked on mini is not independently confirmed on full (seen in E10). E11 replaces this with a proper dev/test split (D16). | fixed, superseded for E11 |
 | D10 | **Web of Science (47k abstracts, 7 domains, 134 areas) as a second dataset for grouping.** | Separates "the method is weak" from "CUAD has too few documents per type" (8-32 per fold). | fixed (E7, E9) |
-| D11 | **Bigger legal pools for the size study:** LegalBench + EDGAR contracts as distractors (deduplicated against the 714 with MinHash) first; then CLERC subsampled to 10k / 30k / 100k documents. The pools are nested (the larger contains the smaller), with fixed queries and gold documents, and hard negatives mined with our own BM25. | EDGAR has no queries but keeps LegalBench's span gold. CLERC has queries and documents but no documented licence or metadata, and only passage-level negatives whose mining is not described. Nested pools make pool size the only thing that changes. | planned |
+| D11 | **Bigger legal pools:** CLERC (full federal court cases, no class labels) is E11's dataset, at 10k cases first, then 30k / 100k nested pools from the same seeded query order (D55). LegalBench + EDGAR distractors (deduplicated with MinHash) remain an option for span-level gold at scale. | CLERC has queries, document-level gold and its own negatives, and no labels, so clusters must be discovered. Its licence is not stated: private use only. Nested pools make pool size the only thing that changes. | fixed (10k), planned (30k / 100k) |
 
 ## 3. Evaluation
 
@@ -91,6 +91,19 @@ Route with the mid band, pick the document with the rare band, rank passages ins
 | D45 | **Compared against:** flat BM25, flat lexical doc-first, the same pipeline without clusters, the same pipeline with oracle routing, and (GPU run) Parth's final method and dense doc-first. | No clusters shows what clustering adds; oracle shows the ceiling of routing; Parth's method is the current best. | fixed |
 | D46 | **Latency measured on query work only:** cluster-local indexes are built before timing and their build time reported separately. | Index building and answering are different costs. | fixed |
 | D47 | **Passage scoring restricted to the chosen document's chunks:** bm25s's precomputed term scores are turned once into one row per chunk, and only the document's rows are read. | Identical scores (unit-tested against full-pool scoring), but the work grows with the document instead of the pool. The old path walked the whole pool's postings of common query words ("agreement", "party") and threw most away, which inflated our latency. The gain depends on the query's words; it is measured, not assumed. Costs ~100 MB extra memory. | fixed |
+
+## 7b. E11 on CLERC (amended 2026-11-13, before any result)
+
+| # | decision | reason | status |
+|---|---|---|---|
+| D52 | **Run E11 on CLERC, not LegalBench.** | E11 tests clusters discovered without labels. LegalBench's groups are known; CLERC's 1.84M federal court cases carry no class labels. The LegalBench run is skipped. | fixed |
+| D53 | **Training queries with CLERC's own negatives**, not our mined ones. | Fair and unmodified: the difficulty is CLERC's, not ours. Verified on the files: their ids are passage ids (~2,200-character passages, consecutive ids from one case). | fixed |
+| D54 | **Skip passages: map positive and negative passages to their cases** (duplicates and the gold case removed) and use full case texts. | The method groups and picks whole documents; passages are only an id bridge. | fixed |
+| D55 | **Pool = queries in a seeded order, each adding its gold and negative cases, until 10,000 cases; no random fill. Larger pools continue the same order.** | Only CLERC's documents enter. Nested pools make pool size the only change when we scale to 30k / 100k. | fixed |
+| D56 | **Remove each query's own source opinion from the pool** (a case holding >= 2 of 3 twelve-word windows of the query, among its top-5 BM25 cases). | The query is cut from that opinion, so it would match verbatim and count as a wrong document for a trivial reason. | fixed |
+| D57 | **Fixed 500-character windows with 100 overlap, ending at word boundaries** (LegalBench keeps the recursive splitter). | CLERC texts have no line breaks, so paragraph splitting finds nothing. Chunking is not the focus; a window is the simplest unit that works. Overlap keeps a sentence cut at one edge whole in the next. | fixed |
+| D58 | **Document-level evaluation:** the pipeline ranks 10 cases per query. Metrics are recall@1 / @10, MRR, nDCG@10 over cases, and DRM; no character metrics. Cluster quality = sizes, cohesion, names (no labels for NMI / ARI). k grid scaled to {8 ... 128}. | CLERC's gold is a case, not a span. Passage-level gold can be added later. | fixed |
+| D59 | **Cluster-local BM25 from one shared count matrix**, same formula as bm25s (Lucene), instead of one BM25 index per cluster set. | Identical scores (unit-tested), but no per-query index builds, which would take hours on 10k long cases. The counts are shared by every clustering of the dev grid. | fixed |
 
 ## 8. Later pipelines
 

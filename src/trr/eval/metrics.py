@@ -116,6 +116,26 @@ def ndcg_at_k(hits: Sequence[Hit], gold: Sequence[GoldSpan], k: int) -> float:
     return dcg / idcg
 
 
+def document_ranking_metrics(ranked_docs: Sequence[str], gold_docs: set[str], ks: Sequence[int]) -> dict[str, float]:
+    """Metrics of a ranked list of DOCUMENTS (datasets with document-level gold, e.g. CLERC).
+
+    - rdoc_recall@k: 1 if a gold document is in the top k.
+    - rdoc_ndcg@k: binary relevance per document, gain / log2(rank + 1), normalised by the ideal
+      ranking (all gold documents first; IDCG over min(gold, k) ranks).
+    - rdoc_mrr: 1 / rank of the first gold document in the list, 0 if absent.
+    A document listed twice counts once (its first rank).
+    """
+    ranked = list(dict.fromkeys(ranked_docs))
+    first = next((r for r, d in enumerate(ranked, start=1) if d in gold_docs), None)
+    out = {"rdoc_mrr": 1.0 / first if first else 0.0}
+    for k in ks:
+        dcg = sum(1.0 / np.log2(r + 1) for r, d in enumerate(ranked[:k], start=1) if d in gold_docs)
+        idcg = sum(1.0 / np.log2(r + 1) for r in range(1, min(len(gold_docs), k) + 1))
+        out[f"rdoc_recall@{k}"] = float(first is not None and first <= k)
+        out[f"rdoc_ndcg@{k}"] = dcg / idcg if idcg else 0.0
+    return out
+
+
 def query_metrics(hits: Sequence[Hit], gold: Sequence[GoldSpan], ks: Sequence[int]) -> dict[str, float]:
     """All metrics at every k for one query, as a flat dict like {'drm@4': 0.75, ...}."""
     out: dict[str, float] = {}

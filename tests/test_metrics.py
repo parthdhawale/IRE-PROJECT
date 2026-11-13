@@ -9,6 +9,7 @@ from trr.data.load import GoldSpan
 from trr.eval.metrics import (
     char_precision_recall_at_k,
     doc_recall_at_k,
+    document_ranking_metrics,
     drm_at_k,
     intersection_length,
     merge_intervals,
@@ -100,6 +101,17 @@ def test_ndcg_ideal_is_capped_at_k_and_overlapping_gold_merges() -> None:
     gold = [G("a", 0, 10), G("a", 5, 20), G("b", 0, 10)]     # a's two spans merge: 2 snippets
     assert ndcg_at_k([H("a", 12, 15)], gold, 1) == pytest.approx(1.0)       # IDCG over min(2, 1) ranks
     assert ndcg_at_k([H("a", 0, 30), H("b", 0, 10)], gold, 4) == pytest.approx(1.0)
+
+
+def test_document_ranking_metrics() -> None:
+    m = document_ranking_metrics(["x", "g", "x", "y"], {"g"}, [1, 2, 10])
+    assert m["rdoc_mrr"] == 0.5 and m["rdoc_recall@1"] == 0.0 and m["rdoc_recall@2"] == 1.0
+    assert m["rdoc_ndcg@1"] == 0.0 and m["rdoc_ndcg@2"] == pytest.approx(1 / np.log2(3))
+    none = document_ranking_metrics(["x", "y"], {"g"}, [10])
+    assert none["rdoc_mrr"] == 0.0 and none["rdoc_recall@10"] == 0.0 and none["rdoc_ndcg@10"] == 0.0
+    two = document_ranking_metrics(["g1", "x", "g2"], {"g1", "g2"}, [2, 3])
+    assert two["rdoc_ndcg@2"] == pytest.approx(1 / (1 + 1 / np.log2(3)))
+    assert two["rdoc_ndcg@3"] == pytest.approx((1 + 0.5) / (1 + 1 / np.log2(3)))
 
 
 def test_paired_bootstrap() -> None:

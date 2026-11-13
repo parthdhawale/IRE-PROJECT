@@ -15,6 +15,7 @@ import faiss
 import numpy as np
 from scipy import sparse
 
+from trr.chunking.fixed import split_fixed
 from trr.chunking.recursive import split_recursive
 from trr.config import config_hash
 from trr.data.load import Document
@@ -76,10 +77,12 @@ class ChunkStore:
         subset = docs[0].subset
         if subset in self.subsets:
             return
-        size = self.cfg["chunking"]["chunk_chars"]
+        c = self.cfg["chunking"]   # method "recursive" (LegalBench default) or "fixed" (CLERC: no line breaks)
         doc_ids, starts, ends, texts = [], [], [], []
         for d in docs:
-            for s, e in split_recursive(d.text, size):
+            spans = (split_fixed(d.text, c["chunk_chars"], c["overlap"]) if c.get("method") == "fixed"
+                     else split_recursive(d.text, c["chunk_chars"]))
+            for s, e in spans:
                 doc_ids.append(d.doc_id)
                 starts.append(s)
                 ends.append(e)

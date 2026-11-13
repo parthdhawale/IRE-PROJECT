@@ -272,6 +272,37 @@ by the dev search.
   the first document (tie rule) instead of crashing. Kaggle run prepared: `kaggle/README.md`,
   `kaggle/e11_band_pipeline.ipynb` (checks the dev/test split is identical to the local one, smoke run,
   dev, test, packaged outputs), `kaggle/make_bundle.sh`.
+- **AMENDED 2026-11-13, before any result: E11 runs on CLERC, not LegalBench** (the LegalBench run is
+  skipped; its notebook is removed). Reason: the point of E11 is a collection WITHOUT predefined classes,
+  where the band clusters are the only grouping; LegalBench's groups are known.
+  - *Data:* CLERC (jhu-clsp/CLERC; licence unstated -> private use, never redistributed). Training queries
+    (`teva_train_dir/train_data.jsonl.gz`: query + 1 positive + 20 negative passages). Verified on the files
+    that these "docid"s are PASSAGE ids (~2,200-character passages, consecutive ids from one case), not cases.
+    Passages are only an id bridge: positive and negatives mapped to cases (`mapping.pid2did.tsv`), duplicates
+    and the gold case removed; the pipeline works on full case texts (`collection.doc.tsv.gz`).
+  - *Pool:* queries in a seeded random order, each adding its gold case and CLERC's negative cases, until
+    10,000 cases; no random fill (only CLERC's own documents); larger pools continue the same order (nested).
+    A query's own source opinion would match it verbatim: a pool case holding >= 2 of 3 twelve-word windows
+    of the query, among its top-5 BM25 cases, is removed (or the query dropped if that case is a gold case).
+  - *Split:* 20% of gold cases (seeded) -> dev queries, rest -> test.
+  - *Chunks:* fixed 500-character windows, 100 overlap, ending at word boundaries (CLERC texts have no line
+    breaks). LegalBench keeps the recursive splitter.
+  - *Grid:* as pre-registered except k {8, 16, 32, 64, 128} (scaled to 10k cases); defaults unchanged.
+  - *Metrics:* document-level gold only. Document recall@1 / @10, MRR, nDCG@10 over the ranked cases (the
+    pipeline ranks 10 cases per query), DRM@k, gold cluster searched, fallback rate, latency, queries/s,
+    add-one-document time. No character metrics (no span gold), no NMI/ARI (no labels): cluster sizes,
+    cohesion (mean cosine to own centroid) and names instead. CIs resample gold cases.
+  - *Baselines:* flat BM25 over chunks, full-query doc-first, the no-cluster and oracle-routing ablations.
+    Parth's final method needs labelled groups and the question-only run needs LegalBench's header: both
+    not applicable.
+  - *Expectation (CLERC):* the citation is removed from the query, so the gold case's name is not in it; the
+    rare band must work from rare facts and terms and will be weaker than on LegalBench. CLERC's negatives
+    are hard (topically close), so most sit in the gold case's cluster: routing will rarely exclude the gold
+    case and will remove few of the confusers; gains, if any, come from the rare band inside the cluster.
+  - *Implementation (before running):* cluster-local BM25 is computed from one shared count matrix (same
+    formula as bm25s Lucene, unit-tested equal to a bm25s index of the same cases) instead of one index per
+    cluster set, which would take hours on 10k cases. Files: `src/trr/data/clerc.py`,
+    `scripts/build_clerc_pool.py`, `src/trr/chunking/fixed.py`, `kaggle/e11_clerc.ipynb`.
 
 ---
 
