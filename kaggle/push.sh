@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Upload the bundle to Kaggle and start the E11 notebook, with the Kaggle CLI and ~/.kaggle/kaggle.json.
-#   kaggle/push.sh datasets   # create (private) or update trr-code; create trr-data once
+#   kaggle/push.sh datasets   # create (private) or update the trr-code dataset
 #   kaggle/push.sh kernel     # push kaggle/e11_clerc.ipynb as a private notebook: Kaggle runs it (Save & Run All)
 # Build the bundle first (kaggle/make_bundle.sh). The account name is read from the token file at run time.
 set -euo pipefail
@@ -14,18 +14,14 @@ exists() { $K datasets status "$user/$1" >/dev/null 2>&1; }
 
 case "${1:-}" in
   datasets)
-    for name in code data; do
+    for name in code; do
       d="$out/upload_$name"
       rm -rf "$d" && mkdir -p "$d"
       cp "$out/trr_$name.zip" "$d/"
       printf '{"title": "trr-%s", "id": "%s/trr-%s", "licenses": [{"name": "other"}]}\n' "$name" "$user" "$name" \
         > "$d/dataset-metadata.json"
       if exists "trr-$name"; then
-        if [ "$name" = code ]; then
-          $K datasets version -p "$d" -m "code $hash"
-        else
-          echo "trr-data already exists: not re-uploaded"
-        fi
+        $K datasets version -p "$d" -m "code $hash"
       else
         $K datasets create -p "$d"            # private unless --public is given
       fi
@@ -38,7 +34,7 @@ case "${1:-}" in
     cat > "$d/kernel-metadata.json" <<EOF
 {"id": "$user/trr-e11-clerc", "title": "trr-e11-clerc", "code_file": "e11_clerc.ipynb",
  "language": "python", "kernel_type": "notebook", "is_private": true, "enable_gpu": false,
- "enable_internet": true, "dataset_sources": ["$user/trr-code", "$user/trr-data"],
+ "enable_internet": true, "dataset_sources": ["$user/trr-code"],
  "competition_sources": [], "kernel_sources": []}
 EOF
     $K kernels push -p "$d"

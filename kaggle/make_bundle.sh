@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Build the two files to upload to Kaggle (see kaggle/README.md):
+# Build the file to upload to Kaggle (see kaggle/README.md):
 #   dist/kaggle/trr_code.zip   -- the committed code (git archive of HEAD) + GIT_HASH
-#   dist/kaggle/trr_data.zip   -- LegalBench-RAG (corpus + benchmarks) + small caches that fix the folds
+# Data is not bundled: the CLERC notebook downloads CLERC itself. (A LegalBench run would also need
+# data/raw/legalbenchrag and data/cache/doc_minhash_*.npy as a second dataset.)
 # The code bundle is made from the last commit only, so a run's git hash always names the exact code:
 # commit first, then bundle.
 set -euo pipefail
@@ -23,9 +24,5 @@ echo "$hash" > "$tmp/GIT_HASH"
 (cd "$tmp" && zip -q "$OLDPWD/$out/trr_code.zip" GIT_HASH)
 rm -rf "$tmp"
 
-# data: the benchmark, the document MinHash signatures (same folds -> same dev/test split) and the
-# routing document embeddings (Parth's router in --dense-baselines; recomputed if missing)
-zip -qr "$out/trr_data.zip" data/raw/legalbenchrag data/cache/doc_minhash_*.npy data/cache/routing_emb_docs_*.npy
 
 echo "code $hash -> $out/trr_code.zip ($(du -h "$out/trr_code.zip" | cut -f1))"
-echo "data       -> $out/trr_data.zip ($(du -h "$out/trr_data.zip" | cut -f1))"

@@ -8,33 +8,29 @@ Commit first: the code bundle is made from the last commit, so every result name
 
     kaggle/make_bundle.sh
 
-This writes:
-
-- `dist/kaggle/trr_code.zip`: the committed code plus a `GIT_HASH` file. Re-upload it after every code change.
-- `dist/kaggle/trr_data.zip`: LegalBench-RAG (needed by the unit tests) and two small caches. Upload it once.
-
-CLERC itself is not uploaded: the notebook downloads it from Hugging Face (`jhu-clsp/CLERC`).
+This writes `dist/kaggle/trr_code.zip`: the committed code plus a `GIT_HASH` file. Re-upload it after every
+code change. No data is uploaded: the notebook downloads CLERC from Hugging Face (`jhu-clsp/CLERC`) itself.
+LegalBench is not involved; its real-data unit tests skip themselves when its files are absent.
 
 ## 2. Upload
 
 **With the Kaggle CLI** (token in `~/.kaggle/kaggle.json`; `pip install kaggle` in the venv):
 
-    kaggle/push.sh datasets    # private datasets trr-code (new version each time) and trr-data (once)
+    kaggle/push.sh datasets    # private dataset trr-code (a new version each time)
     kaggle/push.sh kernel      # pushes the notebook; Kaggle runs it (Save & Run All)
     .venv/bin/kaggle kernels status <user>/trr-e11-clerc
     .venv/bin/kaggle kernels output <user>/trr-e11-clerc -p dist/kaggle/output
 
 **Or by hand (on kaggle.com):**
 
-1. **Datasets -> New Dataset**: upload `trr_data.zip`, name it `trr-data`, keep it **private**.
-2. **Datasets -> New Dataset**: upload `trr_code.zip`, name it `trr-code`, **private**. For later code changes,
-   use **New Version** on this dataset.
-3. **Code -> New Notebook -> File -> Import Notebook**: `kaggle/e11_clerc.ipynb`.
-4. In the notebook's right panel:
-   - **Add Input**: add both datasets.
+1. **Datasets -> New Dataset**: upload `trr_code.zip`, name it `trr-code`, keep it **private**. For later code
+   changes, use **New Version** on this dataset.
+2. **Code -> New Notebook -> File -> Import Notebook**: `kaggle/e11_clerc.ipynb`.
+3. In the notebook's right panel:
+   - **Add Input**: add the `trr-code` dataset.
    - **Accelerator**: None. The pipeline is lexical and runs on CPU.
    - **Internet**: on.
-5. **Save Version -> Save & Run All (Commit)**. The run continues with the browser closed.
+4. **Save Version -> Save & Run All (Commit)**. The run continues with the browser closed.
 
 ## 3. What the notebook does
 
