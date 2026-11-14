@@ -199,3 +199,9 @@ clerc:
     skip_frac: 0.1            # no query from the first 10% of a case (opening names parties and judge)
     leak_window: 12           # reject a span if any 12-word sequence of it is still in its own case
     tries: 20                 # random positions tried per case before the case is skipped
+    analysis:                 # scripts/analyse_e13.py (error analysis of the test runs)
+      name_max_cases: 5       # a capitalised word in at most 5 pool cases counts as a name
+      sibling_min_names: 3    # a wrong case sharing >= 3 such names with the gold = same dispute
+      dup_shingle: 8          # word n-gram length for the near-duplicate text check
+      dup_containment: 0.5    # >= half of the smaller case's 8-grams in the other = near-duplicate
+      random_pairs: 2000      # random case pairs: how often the sibling rule fires by chance

@@ -1,0 +1,11 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 199/199 [00:00<00:00, 2433.63it/s]
+test: 1600 queries; selected {'k': 8, 'b': 3, 'doc_score': 'maxp'}
+emb_band_k8_b3_maxp              r@1=0.624 r@10=0.828 MRR=0.690 p50=33.9ms
+emb_band_k8_b2_maxp              r@1=0.589 r@10=0.775 MRR=0.649 p50=21.1ms
+emb_none_k8_maxp                 r@1=0.657 r@10=0.873 MRR=0.729 p50=68.8ms
+emb_oracle_k8_maxp               r@1=0.704 r@10=0.911 MRR=0.772 p50=10.5ms
+mixed_dense                      r@1=0.657 r@10=0.873 MRR=0.733 p50=135.9ms
+wrote embed_test_clerc_heldout_q350.md

@@ -434,21 +434,111 @@ Written 2026-11-14 before any result. The last experiment of the project. Defaul
   the query's rare words are the case's own names; the band pipeline should at least match doc-first.
   Dense case choice will trail BM25 (topic, not names). Routing as in E11 / E12. Errors will concentrate
   on short queries without names and on cases with near-duplicates in the pool.
+- **Expected recall@1 per method and length, added 2026-11-14 while the runs were going, before any
+  result** (25 / 100 / 350 words): intact control BM25 doc-first >= 0.95 at 100; BM25 doc-first
+  0.25-0.45 / 0.60-0.80 / 0.80-0.90 (recall@10 0.85-0.95 at 100); flat BM25 chunks 0.20-0.40 / 0.50-0.70 /
+  0.70-0.85; band pipeline 0.20-0.40 / 0.55-0.75 / 0.75-0.88 (capped by routing, ~90% gold cluster searched);
+  rare band in the oracle cluster 0.25-0.50 / 0.65-0.85 / 0.85-0.92; dense case choice and the embedding
+  pipeline 0.10-0.25 / 0.25-0.45 / 0.35-0.55; flat dense chunks 0.10-0.20 / 0.20-0.40 / 0.30-0.50. Expected
+  main error: another opinion of the same dispute (district court / appeal / remand) sharing its parties.
 - **Status:** built and unit-tested (`src/trr/data/heldout.py`, `scripts/build_heldout_queries.py`,
   `load_clerc_heldout`, `--dataset clerc_heldout [--qlen N] [--intact]`; 127 tests, including an
   end-to-end held-out run and the intact control on a synthetic pool). Kaggle notebooks
   `kaggle/e13_band.ipynb` (CPU) and `kaggle/e13_embed.ipynb` (GPU), run in parallel.
+- **RESULT (2026-11-14, Kaggle, git b92b70b; band side on CPU, embedding side on a T4 GPU).** Both
+  sessions rebuilt the pool and the held-out queries on their own; the two `heldout/queries.parquet`
+  files are byte-identical (sha256), and so are the pool query files. Builder output equals the dry run
+  (2,000 queries, 400 / 1,600, 18 cases skipped). The held-out index has 1,063,964 chunks (1,074,740
+  intact). Tables: `results/tables/band_test_clerc_heldout_q{25,100,350}.md`,
+  `band_test_clerc_heldout_q100_intact.md`, `embed_test_clerc_heldout_q{25,100,350}.md`, dev tables
+  `*_dev_clerc_heldout_q100.md`, analysis `e13_analysis_clerc_heldout.md` (`scripts/analyse_e13.py`).
+  - *Sanity control passes.* With the passages left in the index (100 words), full-query BM25 doc-first
+    finds the case for 0.987 of queries (needed >= 0.95), flat BM25 0.991. The band pipeline reaches
+    0.948 there; its loss is routing (gold cluster searched 0.959).
+  - *Dev selection (100 words):* band side min_df 2, max_frac 50%, k 8, rare_below 2, B 3 (dev recall@1
+    0.555); embedding side k 8, B 3, maxp (0.465). Unlike E12 (mean), maxp wins here: the evidence is one
+    local passage of the case, not the case as a whole. Both selections beat the pre-registered defaults
+    on test at every length (band +0.057 to +0.066, embedding +0.031 to +0.036, all real).
+  - *Test, document recall@1 at 25 / 100 / 350 words (1,600 queries per length), and at 100 words
+    recall@10, gold cluster searched and median latency:*
+
+    | method | r@1 25 | r@1 100 | r@1 350 | r@10 (100) | gold searched (100) | p50 ms (100) |
+    |---|---|---|---|---|---|---|
+    | full-query BM25 doc-first | **0.454** | **0.625** | **0.700** | 0.842 | 1 | 7.3 |
+    | flat BM25 over chunks | 0.409 | 0.545 | 0.628 | 0.799 | - | 11.7 |
+    | band pipeline, selected | 0.414 | 0.579 | 0.618 | 0.763 | 0.956 | 11.1 |
+    | rare band, no clusters | 0.454 | 0.605 | 0.639 | 0.800 | 1 | 7.0 |
+    | rare band, oracle cluster | 0.482 | 0.604 | 0.630 | 0.782 | 1 | 5.1 |
+    | embedding pipeline, selected | 0.288 | 0.506 | 0.624 | 0.715 | 0.916 | 33.8 |
+    | dense case choice, no clusters | 0.331 | 0.537 | 0.658 | 0.764 | 1 | 69.1 |
+    | dense, oracle cluster | 0.379 | 0.586 | 0.704 | 0.818 | 1 | 10.5 |
+    | flat dense over chunks | 0.331 | 0.537 | 0.658 | 0.764 | - | 135.6 |
+
+    Dense latency excludes query encoding (4 ms per query on the GPU). Dense case choice with maxp ranks
+    cases by their best chunk, which is the order of flat dense retrieval's cases, so those two rows are
+    identical by construction (no query differs).
+  - *CIs (paired bootstrap over gold cases, recall@1):* band pipeline vs BM25 doc-first -0.040
+    [-0.052, -0.027], -0.046 [-0.059, -0.034], -0.082 [-0.099, -0.064] at 25 / 100 / 350, all real.
+    Band pipeline vs the rare band without clusters (the cost of routing alone) -0.040 [-0.052, -0.028],
+    -0.026 [-0.038, -0.015], -0.021 [-0.036, -0.008], all real. Embedding pipeline vs dense without clusters -0.044 [-0.056, -0.032], -0.031 [-0.042, -0.020], -0.033
+    [-0.043, -0.024], all real. Routing reaches the gold cluster for 0.89 / 0.96 / 0.98 (band) and 0.81 /
+    0.92 / 0.94 (embedding) of queries.
+  - *Against the expectation.* Recall is far above the citation task (0.625 vs 0.116 for BM25 doc-first),
+    as expected, but it grows less with length than guessed: BM25 doc-first 0.454 / 0.625 / 0.700 against
+    the guessed 0.25-0.45 / 0.60-0.80 / 0.80-0.90 (just above, low end, below). Three guesses were wrong.
+    (1) **The rare band does not help; it hurts when it is used.** It only acts when the query has a word
+    found in exactly one case (otherwise it falls back to full-query BM25). On those queries it picks the
+    right case less often than full-query BM25 on the same queries: 0.821 vs 0.821 (123 queries), 0.701
+    vs 0.805 (308), 0.629 vs 0.777 (658) at 25 / 100 / 350 words. Longer queries trigger it more often, so
+    the damage grows with length. Likely reason: a word that is in only one *other* case (a cited
+    precedent's party, an odd spelling) outvotes everything else in the query. (2) **Dense did much better
+    than guessed** (0.331 / 0.537 / 0.658 vs 0.10-0.25 / 0.25-0.45 / 0.35-0.55) and nearly catches up with
+    BM25 at 350 words, where the two pipelines tie (band 0.618, embedding 0.624). (3) **The errors are not
+    sibling opinions of the same dispute.** Of BM25 doc-first's wrong top cases, 1-3% are near-duplicate
+    texts and 3-8% share at least 3 names with the gold case (a rule that fires on 0 of 2,000 random
+    pairs); 89-96% are a different dispute. Reading a sample: the query is a doctrine passage (a quoted
+    legal standard, a string of citations: disability-benefit pain standard, arbitration with
+    non-signatories, IRS summons enforcement) and the top case is another case on the same point of law.
+  - *Names decide it.* A query's "names" = capitalised words found in at most 5 pool cases that also
+    appear in the rest of its own case. With none, BM25 doc-first finds the case for 0.376 / 0.517 / 0.574
+    of queries; with 1-2, 0.912 / 0.875 / 0.786; with 3 or more, 1.0 / 0.964 / 0.951. Most passages have
+    none: 85% / 70% / 48% of queries at 25 / 100 / 350 words. That is the template / residual split of the
+    project seen from the query side: a passage made only of shared legal doctrine (template) cannot be
+    attributed by word overlap or by topic; a passage with the case's own facts (residual) nearly always can.
+  - *Query by query* (`e13_analysis_clerc_heldout.md`). BM25 doc-first vs dense case choice at 25 / 100 /
+    350 words: only BM25 right 269 / 247 / 245, only dense right 72 / 106 / 177; either right 0.499 /
+    0.691 / 0.811 (vs 0.454 / 0.625 / 0.700 for BM25 alone). Dense adds little at 25 words and most at
+    350 words, where a perfect per-query choice between the two would gain 11 points.
+  - *Speed and extendibility.* Embedding routing halves dense latency (33.8 vs 69.1 ms; flat dense 135.6
+    ms) for -0.03 recall@1. Band routing gives no speed gain at this k (11.1 vs 7.3 ms for full-query BM25
+    over all cases). Adding one case: band side 4.4 ms to place + 0.8 ms count row vs 86 s to re-cluster;
+    embedding side 111 ms to embed + 0.2 ms to place vs 4.8 s.
+  - *Verdict.* For "which case does this passage come from", full-query BM25 doc-first is the best single
+    method at every length. Neither group-first pipeline beats its own no-cluster version: routing costs 2-4
+    points at rank 1, and pays for itself only in dense search time. The project's distinctive-word step
+    (the rare band) is harmful on this task. The ceiling is set by the query, not the index: passages that
+    hold no case-specific names are attributed about half the time by any method tested.
 
 ---
 
 ## Open items
 
-- E11 and E12 done on CLERC (2026-11-13). Next: a fused pipeline with a per-query confidence signal.
-- After E11 / E12: fused pipeline (stage-wise RRF, confidence-weighted); comparison
-  study (bi-encoder, cross-encoder; time, throughput, accuracy, DRM); hierarchical chunking (tree descent).
-- Datasets for scale: LegalBench + EDGAR Exhibit-10 distractors (deduped against the 714 documents with
-  MinHash); CLERC subsampled pools (10k / 30k / 100k) if its licence and court metadata check out.
-- Run the conc_lr sweep on WOS (E8).
-- Learning curve: subsample WOS (and CUAD) training data per class to test data-size vs domain directly.
+**Decision (2026-11-14): E13 is the last experiment. After its results, the project moves to report
+writing.** Everything below is future work for the report, not planned runs.
+
+- Fused pipeline with a per-query confidence signal: E11 / E12 showed lexical and dense case choice fail
+  on different queries (either right 16.8% vs 11.6%), but plain RRF captures almost none of it.
+- Top-2 / top-3 documents before the passage step: on the citation runs, recall rises ~6-7 points from
+  top 1 to top 2 (BM25 doc-first 0.116 -> 0.181 -> 0.238 at top 3); every doc-first variant searched
+  only the top document.
+- Hierarchical chunking (tree descent inside the chosen document: sections -> clauses). Evidence so far
+  is against a large gain: section leaves as flat units were slightly worse than 500-character chunks
+  (E10, DRM@8 +0.027). Needs span-level gold: LegalBench-RAG has it; CLERC does not (its test
+  passage qrels mark every passage of the cited case; E13 removes the passage by design).
+- Rare band as a vote, not a replacement: on E13 it hurt whenever it acted (one word in exactly one case
+  outvotes the rest of the query). Weighting rare words inside full-query BM25 would keep their signal.
+- Comparison study against a trained bi-encoder and cross-encoder (time, throughput, accuracy, DRM).
+- Scale: CLERC pools of 30k / 100k cases (nested by construction); LegalBench + EDGAR distractors.
+- conc_lr sweep on WOS (E8); learning curve on WOS / CUAD training size.
 - Fix the routers.py module docstring: the LR routers need a refit to absorb new documents (placement
   needs none).

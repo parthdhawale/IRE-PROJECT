@@ -1,0 +1,8 @@
+test: 1600 queries, pool 9777 documents; selected {'min_df': 2, 'max_frac': 0.5, 'k': 8, 'rare_below': 2, 'b': 3}
+band_band_df2_mx50_k8_b3_r2_bm25              r@1=0.618 r@10=0.751 MRR=0.665 DRM@1=0.382 p50=20.1ms
+band_band_df5_mx50_k8_b2_r5_bm25              r@1=0.561 r@10=0.681 MRR=0.604 DRM@1=0.439 p50=10.4ms
+band_none_df2_mx50_k8_r2_bm25                 r@1=0.639 r@10=0.787 MRR=0.690 DRM@1=0.361 p50=16.0ms
+band_oracle_df2_mx50_k8_r2_bm25               r@1=0.630 r@10=0.735 MRR=0.667 DRM@1=0.370 p50=7.2ms
+mixed_docfirst_bm25                           r@1=0.700 r@10=0.902 MRR=0.768 DRM@1=0.300 p50=17.7ms
+mixed_bm25                                    r@1=0.627 r@10=0.881 MRR=0.715 DRM@1=0.372 p50=27.5ms
+wrote band_test_clerc_heldout_q350.md

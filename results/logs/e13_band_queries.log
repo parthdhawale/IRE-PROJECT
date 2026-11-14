@@ -1,0 +1,31 @@
+{
+  "queries": 2000,
+  "dev": 400,
+  "test": 1600,
+  "cases_skipped": 18,
+  "leaky_positions_rejected": 1674,
+  "queries_with_a_rejected_position": 721,
+  "mean_attempts": 2.089,
+  "mean_start_share": 0.4995018479673315,
+  "chars_per_length": {
+    "25": 152.107,
+    "100": 613.71,
+    "350": 2152.5
+  },
+  "pool_cases": 9777,
+  "seconds": 21.19014573097229,
+  "git": "b92b70b",
+  "config": {
+    "n_queries": 2000,
+    "lengths": [
+      25,
+      100,
+      350
+    ],
+    "main_length": 100,
+    "skip_frac": 0.1,
+    "leak_window": 12,
+    "tries": 20
+  },
+  "seed": 0
+}

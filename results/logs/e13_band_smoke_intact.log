@@ -1,0 +1,8 @@
+test: 5 queries, pool 50 documents; selected {'min_df': 5, 'max_frac': 0.5, 'k': 8, 'rare_below': 2, 'b': 1}
+band_band_df5_mx50_k8_b1_r2_bm25              r@1=1.000 r@10=1.000 MRR=1.000 DRM@1=0.000 p50=1.8ms
+band_band_df5_mx50_k8_b2_r5_bm25              r@1=1.000 r@10=1.000 MRR=1.000 DRM@1=0.000 p50=1.8ms
+band_none_df5_mx50_k8_r2_bm25                 r@1=1.000 r@10=1.000 MRR=1.000 DRM@1=0.000 p50=1.1ms
+band_oracle_df5_mx50_k8_r2_bm25               r@1=1.000 r@10=1.000 MRR=1.000 DRM@1=0.000 p50=1.2ms
+mixed_docfirst_bm25                           r@1=1.000 r@10=1.000 MRR=1.000 DRM@1=0.000 p50=1.8ms
+mixed_bm25                                    r@1=1.000 r@10=1.000 MRR=1.000 DRM@1=0.000 p50=0.7ms
+wrote band_test_clerc_heldout_q100_intact_smoke50.md

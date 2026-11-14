@@ -1,0 +1,32 @@
+dev: 5 queries, pool 50 documents
+min_df=2 max_frac=0.25 k=8: built in 0.1s, best r@1 0.800
+min_df=2 max_frac=0.25 k=16: built in 0.1s, best r@1 1.000
+min_df=2 max_frac=0.25 k=32: built in 0.1s, best r@1 1.000
+min_df=2 max_frac=0.25 k=64: built in 0.1s, best r@1 1.000
+min_df=2 max_frac=0.25 k=128: built in 0.1s, best r@1 1.000
+min_df=2 max_frac=0.5 k=8: built in 0.1s, best r@1 0.800
+min_df=2 max_frac=0.5 k=16: built in 0.1s, best r@1 1.000
+min_df=2 max_frac=0.5 k=32: built in 0.1s, best r@1 1.000
+min_df=2 max_frac=0.5 k=64: built in 0.2s, best r@1 1.000
+min_df=2 max_frac=0.5 k=128: built in 0.2s, best r@1 1.000
+min_df=5 max_frac=0.25 k=8: built in 0.1s, best r@1 0.800
+min_df=5 max_frac=0.25 k=16: built in 0.1s, best r@1 1.000
+min_df=5 max_frac=0.25 k=32: built in 0.1s, best r@1 1.000
+min_df=5 max_frac=0.25 k=64: built in 0.1s, best r@1 1.000
+min_df=5 max_frac=0.25 k=128: built in 0.1s, best r@1 1.000
+min_df=5 max_frac=0.5 k=8: built in 0.1s, best r@1 1.000
+min_df=5 max_frac=0.5 k=16: built in 0.1s, best r@1 1.000
+min_df=5 max_frac=0.5 k=32: built in 0.1s, best r@1 1.000
+min_df=5 max_frac=0.5 k=64: built in 0.1s, best r@1 1.000
+min_df=5 max_frac=0.5 k=128: built in 0.1s, best r@1 1.000
+min_df=20 max_frac=0.25 k=8: skipped (empty mid band: no word in >= 20 and <= 25% of 50 documents)
+min_df=20 max_frac=0.25 k=16: skipped (empty mid band: no word in >= 20 and <= 25% of 50 documents)
+min_df=20 max_frac=0.25 k=32: skipped (empty mid band: no word in >= 20 and <= 25% of 50 documents)
+min_df=20 max_frac=0.25 k=64: skipped (empty mid band: no word in >= 20 and <= 25% of 50 documents)
+min_df=20 max_frac=0.25 k=128: skipped (empty mid band: no word in >= 20 and <= 25% of 50 documents)
+min_df=20 max_frac=0.5 k=8: built in 0.0s, best r@1 1.000
+min_df=20 max_frac=0.5 k=16: built in 0.1s, best r@1 1.000
+min_df=20 max_frac=0.5 k=32: built in 0.1s, best r@1 1.000
+min_df=20 max_frac=0.5 k=64: built in 0.1s, best r@1 1.000
+min_df=20 max_frac=0.5 k=128: built in 0.1s, best r@1 1.000
+selected {'min_df': 5, 'max_frac': 0.5, 'k': 8, 'rare_below': 2, 'b': 1} (dev r@1 1.000, 37 tied); wrote band_dev_clerc_heldout_q100_smoke50.md

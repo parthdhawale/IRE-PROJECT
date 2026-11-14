@@ -240,6 +240,17 @@ document (lower is better). "Real" = the document-level bootstrap CI excludes 0 
 - **Expectation:** much higher than citation retrieval (names run through a whole opinion); the rare
   band helps here; accuracy falls with shorter queries; dense trails BM25.
 - **Status:** built and unit-tested; Kaggle notebooks `kaggle/e13_band.ipynb` (CPU), `kaggle/e13_embed.ipynb` (GPU).
+- **Result (2026-11-14; 1,600 test queries per length; `results/tables/*_test_clerc_heldout_q*.md`,
+  `e13_analysis_clerc_heldout.md`):** the sanity control passes (passages left in: BM25 doc-first 0.987).
+  Held out, document recall@1 at 25 / 100 / 350 words: **full-query BM25 doc-first 0.454 / 0.625 / 0.700**,
+  flat BM25 over chunks 0.409 / 0.545 / 0.628, band pipeline 0.414 / 0.579 / 0.618, dense case choice
+  0.331 / 0.537 / 0.658, embedding pipeline 0.288 / 0.506 / 0.624. Both pipelines are below their
+  no-cluster versions (all CIs real); embedding routing halves dense search time. Against the
+  expectation, the rare band hurts when it acts (0.701 vs 0.805 for full-query BM25 on the same queries
+  at 100 words), dense did much better than guessed, and the errors are not sibling opinions (3-8%) but
+  doctrine passages matched to another case on the same point of law. What decides success is whether
+  the passage holds the case's own names: at 100 words, 0.517 without any (70% of queries) vs 0.875 with
+  one or two.
 
 ---
 
