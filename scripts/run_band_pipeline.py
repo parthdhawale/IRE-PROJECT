@@ -2,7 +2,7 @@
 
     python scripts/run_band_pipeline.py --stage dev            # grid on dev queries, picks a setting
     python scripts/run_band_pipeline.py --stage test           # selected + default settings and baselines on test
-    --dataset clerc (default) | legalbench
+    --dataset clerc (default) | clerc_heldout [--qlen N] [--intact] | legalbench
     --dense-baselines (LegalBench only): + Parth's final method and dense doc-first (chunk embeddings: GPU)
     --smoke N: N documents per subset (a quick check that the script runs; tables get "_smoke<N>")
 
@@ -37,8 +37,8 @@ from sklearn.metrics import adjusted_rand_score, normalized_mutual_info_score
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from trr.config import git_hash, load_config, set_seeds  # noqa: E402
-from trr.eval.experiment import (DEV, TEST, add_document_metrics, doc_level_ci, human_groups,  # noqa: E402
-                                 load_data, question_only, summarise, use_dataset)
+from trr.eval.experiment import (DATASETS, DEV, TEST, add_document_metrics, doc_level_ci, human_groups,  # noqa: E402
+                                 load_data, question_only, run_tags, summarise, use_dataset)
 from trr.eval.run import aggregate, run_subset  # noqa: E402
 from trr.retrievers.band_pipeline import POOL, BandIndex, BandPipelineRetriever, count_terms  # noqa: E402
 from trr.retrievers.chunk_store import ChunkStore  # noqa: E402
@@ -83,7 +83,7 @@ def score_document_choice(ret: BandPipelineRetriever, queries, words) -> list[di
     return out
 
 
-def stage_dev(cfg, docs, queries, tag: str) -> None:
+def stage_dev(cfg, docs, queries, tag: str, sel_tag: str) -> None:
     bc, subsets, tables = cfg["band_clusters"], cfg["data"]["subsets"], Path(cfg["paths"]["tables"])
     groups = human_groups(cfg, docs)
     dev = queries[DEV]
@@ -125,7 +125,7 @@ def stage_dev(cfg, docs, queries, tag: str) -> None:
     tied = int((band.correct == best.correct).sum())
     json.dump({"selected": selected, "default": default, "dev_doc_recall@1": float(best["doc_recall@1"]),
                "settings_tied_at_best": tied, "git": git_hash(), "smoke": "smoke" in tag, "dataset": cfg["dataset"]},
-              open(tables / f"band_selected{tag}.json", "w"), indent=2)
+              open(tables / f"band_selected{sel_tag}.json", "w"), indent=2)
     df.to_csv(tables / f"band_dev{tag}.csv", index=False)
 
     top = band.sort_values("correct", ascending=False).head(15)
@@ -183,10 +183,10 @@ def add_one_document_ms(cfg, ix: BandIndex, n: int) -> dict:
             "recluster_s": time.perf_counter() - t0, "kmeans_restarts": bc["kmeans_n_init"]}
 
 
-def stage_test(cfg, docs, queries, tag: str, dense: bool) -> None:
+def stage_test(cfg, docs, queries, tag: str, sel_tag: str, dense: bool) -> None:
     bc, subsets, ks = cfg["band_clusters"], cfg["data"]["subsets"], cfg["eval"]["ks"]
     tables = Path(cfg["paths"]["tables"])
-    sel_file = tables / f"band_selected{tag}.json"
+    sel_file = tables / f"band_selected{sel_tag}.json"
     if not sel_file.exists():
         sys.exit(f"{sel_file} missing: run --stage dev first")
     chosen = json.load(open(sel_file))
@@ -322,18 +322,23 @@ def main() -> None:
     cfg = load_config()
     ap = argparse.ArgumentParser()
     ap.add_argument("--stage", required=True, choices=["dev", "test"])
-    ap.add_argument("--dataset", default="clerc", choices=["clerc", "legalbench"])
+    ap.add_argument("--dataset", default="clerc", choices=list(DATASETS))
+    ap.add_argument("--qlen", type=int, default=None, help="clerc_heldout: query length in words")
+    ap.add_argument("--intact", action="store_true", help="clerc_heldout: passages left in (sanity)")
     ap.add_argument("--smoke", type=int, default=None, help="documents per subset (local check)")
     ap.add_argument("--dense-baselines", action="store_true", help="needs chunk embeddings (GPU)")
     args = ap.parse_args()
     set_seeds(cfg["seed"])
-    use_dataset(cfg, args.dataset)
-    tag = f"_{args.dataset}" + (f"_smoke{args.smoke}" if args.smoke else "")
+    use_dataset(cfg, args.dataset, args.qlen, args.intact)
+    tag, sel_tag = run_tags(cfg, args.smoke)
+    h = cfg["clerc"]["heldout"]
+    if args.stage == "dev" and args.dataset == "clerc_heldout" and (h["length"] != h["main_length"] or args.intact):
+        sys.exit("clerc_heldout selects once: --stage dev only at the main length, held out")
     docs, queries = load_data(cfg, args.smoke)
     if args.stage == "dev":
-        stage_dev(cfg, docs, queries, tag)
+        stage_dev(cfg, docs, queries, tag, sel_tag)
     else:
-        stage_test(cfg, docs, queries, tag, args.dense_baselines)
+        stage_test(cfg, docs, queries, tag, sel_tag, args.dense_baselines)
 
 
 if __name__ == "__main__":

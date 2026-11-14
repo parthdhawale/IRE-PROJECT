@@ -13,7 +13,7 @@ from collections import defaultdict
 import numpy as np
 import pandas as pd
 
-from trr.data.clerc import load_clerc
+from trr.data.clerc import load_clerc, load_clerc_heldout
 from trr.data.load import load_corpus, load_queries
 from trr.eval.metrics import document_ranking_metrics, paired_cluster_bootstrap_macro_ci
 from trr.eval.splits import DEV, TEST, split_queries
@@ -22,11 +22,20 @@ from trr.routing.groups import assign_groups
 from trr.routing.prep import legalbench_doc_folds
 
 
-def use_dataset(cfg: dict, dataset: str) -> None:
+DATASETS = ("clerc", "clerc_heldout", "legalbench")
+
+
+def use_dataset(cfg: dict, dataset: str, qlen: int | None = None, intact: bool = False) -> None:
     """Point the shared config at one dataset. CLERC: one subset "clerc", its own chunking (fixed
-    windows: its texts have no line breaks), a k grid scaled to its pool, document-level CI metrics."""
+    windows: its texts have no line breaks), a k grid scaled to its pool, document-level CI metrics.
+    clerc_heldout (E13): the same pool with held-out passage queries of `qlen` words (default: the
+    main length); `intact` leaves the passages in the index (the sanity control)."""
     cfg["dataset"] = dataset
-    if dataset == "clerc":
+    if dataset == "clerc_heldout":
+        h = cfg["clerc"]["heldout"]
+        h["length"], h["intact"] = qlen or h["main_length"], intact
+        cfg["cache_variant"] = "intact" if intact else "heldout"
+    if dataset in ("clerc", "clerc_heldout"):
         c = cfg["clerc"]
         cfg["chunking"], cfg["data"]["subsets"] = c["chunking"], ["clerc"]
         cfg["band_clusters"]["sweep_k"], cfg["band_clusters"]["ci_metrics"] = c["sweep_k"], c["ci_metrics"]
@@ -37,6 +46,9 @@ def load_data(cfg: dict, smoke: int | None):
     smoke run sees exactly the same dev / test sides, only fewer of them."""
     if cfg["dataset"] == "clerc":
         docs, queries, side = load_clerc(cfg)
+    elif cfg["dataset"] == "clerc_heldout":
+        h = cfg["clerc"]["heldout"]
+        docs, queries, side = load_clerc_heldout(cfg, h["length"], h["intact"])
     else:
         raw, subsets = cfg["paths"]["raw"], cfg["data"]["subsets"]
         docs = [d for s in subsets for d in load_corpus(raw, s)]
@@ -70,6 +82,17 @@ def smoke_slice(cfg, docs, queries, side, n_docs):
 def question_only(queries):
     """The same queries with the header ("Consider the NDA between X and Y;") removed."""
     return [dataclasses.replace(q, text=split_query(q.text)[1]) for q in queries]
+
+
+def run_tags(cfg: dict, smoke: int | None) -> tuple[str, str]:
+    """(tag of this run's outputs, tag of the dev selection file). E13 selects once, at the main
+    length on the held-out index, and every length and the intact control reuse that selection."""
+    smoke_part = f"_smoke{smoke}" if smoke else ""
+    sel_tag = f"_{cfg['dataset']}{smoke_part}"
+    if cfg["dataset"] != "clerc_heldout":
+        return sel_tag, sel_tag
+    h = cfg["clerc"]["heldout"]
+    return f"_{cfg['dataset']}_q{h['length']}{'_intact' if h['intact'] else ''}{smoke_part}", sel_tag
 
 
 def human_groups(cfg, docs) -> dict[str, str] | None:

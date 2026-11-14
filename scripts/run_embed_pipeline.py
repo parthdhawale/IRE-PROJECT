@@ -2,7 +2,7 @@
 
     python scripts/run_embed_pipeline.py --stage dev     # grid on dev queries, picks a setting
     python scripts/run_embed_pipeline.py --stage test    # selected + default settings and baselines on test
-    --dataset clerc (default) | legalbench;  --smoke N: N documents per subset (tables get "_smoke<N>")
+    --dataset clerc (default) | clerc_heldout [--qlen N] [--intact] | legalbench;  --smoke N: N documents per subset (tables get "_smoke<N>")
 
 Same pool, dev / test split, selection rule and test-once as E11 (run_band_pipeline.py), so the two
 pipelines compare query by query. Every chunk is embedded once (cached in data/cache, GPU on Kaggle).
@@ -32,8 +32,8 @@ from sklearn.metrics import adjusted_rand_score, normalized_mutual_info_score
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from trr.clustering.band_clusters import _unit_rows  # noqa: E402
 from trr.config import git_hash, load_config, set_seeds  # noqa: E402
-from trr.eval.experiment import (DEV, TEST, add_document_metrics, doc_level_ci, human_groups,  # noqa: E402
-                                 load_data, summarise, use_dataset)
+from trr.eval.experiment import (DATASETS, DEV, TEST, add_document_metrics, doc_level_ci, human_groups,  # noqa: E402
+                                 load_data, run_tags, summarise, use_dataset)
 from trr.eval.run import aggregate, run_subset  # noqa: E402
 from trr.retrievers.chunk_store import ChunkStore  # noqa: E402
 from trr.retrievers.embed_pipeline import POOL, EmbedIndex, EmbedPipelineRetriever  # noqa: E402
@@ -91,7 +91,7 @@ def score_document_choice(ret: EmbedPipelineRetriever, queries, qvecs) -> list[d
     return out
 
 
-def stage_dev(cfg, docs, queries, tag: str) -> None:
+def stage_dev(cfg, docs, queries, tag: str, sel_tag: str) -> None:
     ec, subsets, tables = cfg["embed_clusters"], cfg["data"]["subsets"], Path(cfg["paths"]["tables"])
     groups, dev = human_groups(cfg, docs), queries[DEV]
     store, embed_s = build_store(cfg, docs)
@@ -126,7 +126,7 @@ def stage_dev(cfg, docs, queries, tag: str) -> None:
     tied = int((band.correct == best.correct).sum())
     json.dump({"selected": selected, "default": default, "dev_doc_recall@1": float(best["doc_recall@1"]),
                "settings_tied_at_best": tied, "git": git_hash(), "smoke": "smoke" in tag, "dataset": cfg["dataset"],
-               "embed_s": embed_s}, open(tables / f"embed_selected{tag}.json", "w"), indent=2)
+               "embed_s": embed_s}, open(tables / f"embed_selected{sel_tag}.json", "w"), indent=2)
     df.to_csv(tables / f"embed_dev{tag}.csv", index=False)
     cols = GRID_KEYS + ["doc_recall@1", "in_cluster", "searched"] + [f"r1_{s}" for s in subsets]
     md = [f"# E12 dev search on {cfg['dataset']}: embedding pipeline document choice ({len(dev)} dev queries"
@@ -167,10 +167,10 @@ def add_one_document_ms(cfg, store, ix: EmbedIndex, n: int) -> dict:
             "recluster_s": time.perf_counter() - t0}
 
 
-def stage_test(cfg, docs, queries, tag: str) -> None:
+def stage_test(cfg, docs, queries, tag: str, sel_tag: str) -> None:
     ec, subsets, ks = cfg["embed_clusters"], cfg["data"]["subsets"], cfg["eval"]["ks"]
     tables, doc_list = Path(cfg["paths"]["tables"]), cfg["clerc"]["doc_list"]
-    sel_file = tables / f"embed_selected{tag}.json"
+    sel_file = tables / f"embed_selected{sel_tag}.json"
     if not sel_file.exists():
         sys.exit(f"{sel_file} missing: run --stage dev first")
     chosen, test, split = json.load(open(sel_file)), queries[TEST], f"test{tag}"
@@ -262,14 +262,19 @@ def main() -> None:
     cfg = load_config()
     ap = argparse.ArgumentParser()
     ap.add_argument("--stage", required=True, choices=["dev", "test"])
-    ap.add_argument("--dataset", default="clerc", choices=["clerc", "legalbench"])
+    ap.add_argument("--dataset", default="clerc", choices=list(DATASETS))
+    ap.add_argument("--qlen", type=int, default=None, help="clerc_heldout: query length in words")
+    ap.add_argument("--intact", action="store_true", help="clerc_heldout: passages left in (sanity)")
     ap.add_argument("--smoke", type=int, default=None, help="documents per subset (a quick check)")
     args = ap.parse_args()
     set_seeds(cfg["seed"])
-    use_dataset(cfg, args.dataset)
-    tag = f"_{args.dataset}" + (f"_smoke{args.smoke}" if args.smoke else "")
+    use_dataset(cfg, args.dataset, args.qlen, args.intact)
+    tag, sel_tag = run_tags(cfg, args.smoke)
+    h = cfg["clerc"]["heldout"]
+    if args.stage == "dev" and args.dataset == "clerc_heldout" and (h["length"] != h["main_length"] or args.intact):
+        sys.exit("clerc_heldout selects once: --stage dev only at the main length, held out")
     docs, queries = load_data(cfg, args.smoke)
-    (stage_dev if args.stage == "dev" else stage_test)(cfg, docs, queries, tag)
+    (stage_dev if args.stage == "dev" else stage_test)(cfg, docs, queries, tag, sel_tag)
 
 
 if __name__ == "__main__":

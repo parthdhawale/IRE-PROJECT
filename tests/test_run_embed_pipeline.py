@@ -78,12 +78,12 @@ def test_clerc_dev_then_test_with_document_metrics(script, tmp_path):
     script.use_dataset(cfg, "clerc")
     docs, queries = script.load_data(cfg, None)
 
-    script.stage_dev(cfg, docs, queries, "_clerc")
+    script.stage_dev(cfg, docs, queries, "_clerc", "_clerc")
     sel = json.loads((tmp_path / "tables" / "embed_selected_clerc.json").read_text())
     assert sel["selected"]["k"] == 3 and sel["selected"]["doc_score"] in ("mean", "maxp")
     assert any((tmp_path / "cache").glob("chunk_emb_clerc_model_*.npy"))      # chunks embedded once, cached
 
-    script.stage_test(cfg, docs, queries, "_clerc")
+    script.stage_test(cfg, docs, queries, "_clerc", "_clerc")
     df = pd.read_csv(tmp_path / "tables" / "embed_test_clerc.csv")
     assert {"emb_none_k3_" + sel["selected"]["doc_score"], "mixed_dense"} <= set(df.method)
     assert {"rdoc_recall@1", "rdoc_mrr", "rdoc_ndcg@10"} <= set(df.columns)

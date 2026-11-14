@@ -32,6 +32,7 @@ import numpy as np
 import pandas as pd
 
 from trr.config import REPO_ROOT
+from trr.data.heldout import cut
 from trr.data.load import Document, GoldSpan, Query
 
 SUBSET = "clerc"
@@ -125,3 +126,31 @@ def load_clerc(cfg: dict) -> tuple[list[Document], list[Query], dict[str, str]]:
     queries = [Query(qid, SUBSET, text, [GoldSpan(doc_key(g), 0, length[doc_key(g)])])
                for qid, text, g in zip(q.qid, q.text, q.gold_case)]
     return docs, queries, dict(zip(q.qid, q.side))
+
+
+def heldout_dir(cfg: dict) -> Path:
+    return pool_dir(cfg) / "heldout"
+
+
+def load_clerc_heldout(cfg: dict, length: int, intact: bool = False
+                       ) -> tuple[list[Document], list[Query], dict[str, str]]:
+    """E13 (trr.data.heldout): (documents, queries of `length` words, qid -> side). Every queried
+    case is indexed with its longest query span cut out (Document.cut), unless `intact` (the
+    sanity control: the passage left in). Gold = the whole ORIGINAL case."""
+    hq_path = heldout_dir(cfg) / "queries.parquet"
+    if not hq_path.exists():
+        raise FileNotFoundError(f"{hq_path} missing: build it with scripts/build_heldout_queries.py")
+    hq = pd.read_parquet(hq_path)
+    if f"end_{length}" not in hq.columns:
+        raise ValueError(f"no queries of {length} words; built lengths: {cfg['clerc']['heldout']['lengths']}")
+    longest = max(cfg["clerc"]["heldout"]["lengths"])
+    d = pd.read_parquet(pool_dir(cfg) / "docs.parquet")
+    spans = {} if intact else {int(c): (int(s), int(e)) for c, s, e in zip(hq.case_id, hq.start, hq[f"end_{longest}"])}
+    docs = []
+    for case_id, text in zip(d.case_id, d.text):
+        span = spans.get(int(case_id))
+        docs.append(Document(doc_key(case_id), SUBSET, cut(text, *span) if span else text, cut=span))
+    original = dict(zip(d.case_id.astype(int), d.text))
+    queries = [Query(qid, SUBSET, original[int(c)][int(s):int(e)], [GoldSpan(doc_key(c), 0, len(original[int(c)]))])
+               for qid, c, s, e in zip(hq.qid, hq.case_id, hq.start, hq[f"end_{length}"])]
+    return docs, queries, dict(zip(hq.qid, hq.side))

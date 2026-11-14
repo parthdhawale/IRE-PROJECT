@@ -115,6 +115,18 @@ Route with the mid band, pick the document with the rare band, rank passages ins
 | D63 | **Chunk vectors stored grouped by cluster** (one contiguous block per cluster, an inverted-file layout). | Searching B clusters reads only their blocks, so routing really cuts the work, as for the lexical pipeline; scores are identical to brute force (unit-tested). | fixed |
 | D64 | **E12 rebuilds the pool in its own Kaggle session** with the same deterministic builder, instead of waiting for E11's output. | Runs E11 and E12 in parallel; the builder is seeded and the files are fixed, so the pool is identical (checked after both runs). Costs one more ~13 GB download on Kaggle's side. | fixed |
 
+## 7d. E13 held-out passage queries (pre-registered 2026-11-14; the last experiment)
+
+| # | decision | reason | status |
+|---|---|---|---|
+| D65 | **Task = which case does this passage come from**, with the passage cut out of its case before indexing. | E11 / E12 showed CLERC's own queries ask a different question (which earlier case is cited), where the query shares only a legal point with the gold case. The project's question is document attribution; cutting the passage out stops verbatim matching, so the case must be recognised from the rest of its text. | fixed |
+| D66 | **One query per case, 2,000 cases (seeded), split 20% dev / 80% test by case.** | One query per case lets a single held-out index serve every query, and no two queries are about the same case (honest CIs). 1,600 test queries are 2.5x E11's. | fixed |
+| D67 | **Query = a sentence start after the first 10% of the case; lengths 25 / 100 / 350 words from the same start; the 350-word span is the one cut.** | The opening names the parties and the judge (the header shortcut, E10). Shorter queries are prefixes of the longest, so one index serves all lengths; 100 words is the main length (dev selection), 350 is about a CLERC passage. | fixed |
+| D68 | **Leak check: a span is rejected if any 12-word sequence of it still occurs in the rest of its case; up to 20 positions are tried.** | Opinions repeat themselves (holdings restated, statutes quoted twice): on the real pool about 38% of random positions repeat at least one 12-word sequence. A rejected span would be findable verbatim. Cost: queries come from the less repetitive parts of opinions. Other cases quoting the passage stay in: those are real confusers. | fixed |
+| D69 | **Hits stay in original offsets: `Document.cut` holds the removed span and `ChunkStore.add` maps chunk offsets back** (`trr.data.heldout.to_original`). | Project rule: never evaluate on transformed text. Unit-tested: every chunk not spanning the cut points at the same characters in the original case. | fixed |
+| D70 | **Sanity control: the same 100-word queries with the passages left in the index** (band side only). | Full-query BM25 must then find almost every case; if not, the pipeline is broken. Dense intact would need a second ~1 h embedding of the pool, so it is skipped. | fixed |
+| D71 | **Same pool, methods, grids and selection rule as E11 / E12, one dev search per side at 100 words; other lengths and the control reuse that selection.** | Only the queries change, so E13 compares directly with E11 / E12 and the two sides compare query by query. | fixed |
+
 ## 8. Later pipelines
 
 | # | decision | reason | status |

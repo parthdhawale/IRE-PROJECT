@@ -36,6 +36,9 @@ class Document:
     doc_id: str   # path relative to corpus/, e.g. "cuad/LIMEENERGYCO_...txt"
     subset: str
     text: str     # universal-newline text
+    # held-out documents (E13): the [start, end) span of the ORIGINAL text removed from `text`;
+    # chunk offsets are mapped back through it (trr.data.heldout.to_original)
+    cut: tuple[int, int] | None = None
 
 
 @dataclass(frozen=True)

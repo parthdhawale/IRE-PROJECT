@@ -228,6 +228,19 @@ document (lower is better). "Real" = the document-level bootstrap CI excludes 0 
   at recall@1 and 62.8% at recall@10. An exploratory plain RRF of the two reaches only 0.121 at recall@1
   (not a real gain) and 0.530 at recall@10: fusion needs a per-query confidence signal, not equal votes.
 
+## E13. Held-out passage queries on CLERC (pre-registered; the last experiment)
+
+- **Question:** which case does a passage come from, when the passage is cut out of the index? This is
+  the document-attribution question of the project (E11 / E12's CLERC queries ask which case is cited).
+- **Data:** the same 9,777-case pool; 2,000 cases get one query (a sentence start after the first 10% of
+  the case; 25, 100 and 350 words); the 350-word span is removed from its case before indexing; spans
+  that repeat inside their own case are rejected. Dev 400 / test 1,600, by case. Details: D65-D71.
+- **Method:** E11 and E12 unchanged, one dev search each at 100 words, one test run per length; a sanity
+  control with the passages left in the index.
+- **Expectation:** much higher than citation retrieval (names run through a whole opinion); the rare
+  band helps here; accuracy falls with shorter queries; dense trails BM25.
+- **Status:** built and unit-tested; Kaggle notebooks `kaggle/e13_band.ipynb` (CPU), `kaggle/e13_embed.ipynb` (GPU).
+
 ---
 
 ## Planned

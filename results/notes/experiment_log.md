@@ -403,6 +403,42 @@ Written 2026-11-13 before any result. Defaults in `configs/default.yaml` (`embed
     fusion captures almost none of the 16.8% ceiling at rank 1, though it lifts recall@10. The fused
     pipeline needs a signal that says *which* ranker to trust per query, not equal votes.
 
+## E13. Held-out passage queries on CLERC: which case does this passage come from? (PRE-REGISTERED)
+
+Written 2026-11-14 before any result. The last experiment of the project. Defaults in
+`configs/default.yaml` (`clerc.heldout`); design decisions D65-D71.
+
+- **Question:** given a passage of a court case, can the pipelines find the case it belongs to, when the
+  passage itself is not in the index? This is the document-attribution question the project is about;
+  E11 / E12 used CLERC's citation queries, where the gold case is a *different* case that the query cites.
+- **Data:** the E11 / E12 pool (9,777 cases), unchanged. 2,000 cases (seeded) get one query each: a random
+  sentence start after the first 10% of the case, then 25, 100 or 350 words (shorter = prefixes). The
+  350-word span is cut out of its case before chunking, clustering and embedding, so one held-out index
+  serves all lengths; hits are mapped back to original offsets. Spans whose 12-word sequences still occur
+  elsewhere in their own case are rejected (up to 20 positions per case). Split by case: 400 dev / 1,600
+  test. A dry run of the builder on the real pool: 2,000 queries, 18 cases skipped (no valid position),
+  721 cases needed a second position because the first repeated inside the opinion (inspected: genuine
+  repetitions, e.g. a statute quoted twice, not duplicated texts).
+- **Method / baselines:** unchanged from E11 (band pipeline, rare band without clusters, oracle cluster,
+  full-query BM25 doc-first, flat BM25 over chunks) and E12 (embedding pipeline, dense case choice without
+  clusters, oracle cluster, flat dense over chunks). One dev search per side at 100 words with the same
+  grids and selection rule; the test runs once per length with that selection.
+- **Sanity control:** the 100-word test queries with the passages left in the index (band side).
+  Full-query BM25 doc-first must reach recall@1 near 1; otherwise the pipeline is broken.
+- **Metrics:** as E11 / E12 (document recall@1 / @10, MRR, nDCG@10, gold cluster searched, latency,
+  throughput, add-one-case time), per query length, with document-level CIs; the query-by-query
+  comparison of the two sides (`scripts/compare_e11_e12.py` pattern).
+- **Expectation:** far above the citation task. Names of parties, places and witnesses run through a whole
+  opinion, so full-query BM25 should find most cases at 100 and 350 words (guess: recall@1 0.6-0.8 at
+  100 words) and fewer at 25 words. The rare band should help here, unlike on citation queries, because
+  the query's rare words are the case's own names; the band pipeline should at least match doc-first.
+  Dense case choice will trail BM25 (topic, not names). Routing as in E11 / E12. Errors will concentrate
+  on short queries without names and on cases with near-duplicates in the pool.
+- **Status:** built and unit-tested (`src/trr/data/heldout.py`, `scripts/build_heldout_queries.py`,
+  `load_clerc_heldout`, `--dataset clerc_heldout [--qlen N] [--intact]`; 127 tests, including an
+  end-to-end held-out run and the intact control on a synthetic pool). Kaggle notebooks
+  `kaggle/e13_band.ipynb` (CPU) and `kaggle/e13_embed.ipynb` (GPU), run in parallel.
+
 ---
 
 ## Open items

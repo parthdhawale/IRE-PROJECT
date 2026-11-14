@@ -2,7 +2,8 @@
 
 BM25, dense, hybrid, oracle and doc-first all search the same 500-char chunks, so the chunks,
 the BM25 index and the chunk embeddings are built once per subset here and shared.
-Embeddings are cached to data/cache/ keyed by (model, chunking config, subset).
+Embeddings are cached to data/cache/ keyed by (model, chunking config, subset, cache variant).
+Chunk offsets are always in the ORIGINAL document text, also for held-out documents (Document.cut).
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ from scipy import sparse
 
 from trr.chunking.fixed import split_fixed
 from trr.chunking.recursive import split_recursive
+from trr.data.heldout import to_original
 from trr.config import config_hash
 from trr.data.load import Document
 
@@ -83,10 +85,11 @@ class ChunkStore:
             spans = (split_fixed(d.text, c["chunk_chars"], c["overlap"]) if c.get("method") == "fixed"
                      else split_recursive(d.text, c["chunk_chars"]))
             for s, e in spans:
+                texts.append(d.text[s:e])
+                s, e = to_original(s, e, d.cut)   # hits always carry ORIGINAL offsets
                 doc_ids.append(d.doc_id)
                 starts.append(s)
                 ends.append(e)
-                texts.append(d.text[s:e])
         rows: dict[str, list[int]] = {}
         for i, d in enumerate(doc_ids):
             rows.setdefault(d, []).append(i)
@@ -178,8 +181,9 @@ class ChunkStore:
         return self._embedder
 
     def _emb_cache_path(self, subset: str) -> Path:
+        variant = self.cfg.get("cache_variant")   # e.g. "heldout": same subset name, different texts
         key = config_hash({"model": self.embedder.model_name, "chunking": self.cfg["chunking"],
-                           "n": len(self.subsets[subset].texts)})
+                           "n": len(self.subsets[subset].texts), **({"variant": variant} if variant else {})})
         name = self.embedder.model_name.split("/")[-1]
         return Path(self.cfg["paths"]["cache"]) / f"chunk_emb_{subset}_{name}_{key}.npy"
 

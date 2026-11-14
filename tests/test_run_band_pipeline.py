@@ -56,11 +56,11 @@ def test_clerc_dev_then_test_writes_tables_with_document_metrics(script, tmp_pat
     docs, queries = script.load_data(cfg, None)
     assert len(docs) == 12 and len(queries["dev"]) + len(queries["test"]) == 12
 
-    script.stage_dev(cfg, docs, queries, "_clerc")
+    script.stage_dev(cfg, docs, queries, "_clerc", "_clerc")
     sel = json.loads((tmp_path / "tables" / "band_selected_clerc.json").read_text())
     assert sel["selected"]["k"] == 3 and sel["dataset"] == "clerc"
 
-    script.stage_test(cfg, docs, queries, "_clerc", dense=False)
+    script.stage_test(cfg, docs, queries, "_clerc", "_clerc", dense=False)
     df = pd.read_csv(tmp_path / "tables" / "band_test_clerc.csv")
     main = df[(df.method == df.method.iloc[0]) & (df.subset == "ALL") & (df.k == 1)].iloc[0]
     assert {"rdoc_recall@1", "rdoc_recall@10", "rdoc_mrr", "rdoc_ndcg@10"} <= set(df.columns)
